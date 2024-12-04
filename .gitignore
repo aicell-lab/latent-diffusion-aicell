@@ -1,0 +1,17 @@
+env
+venv
+.env
+.venv
+*.ipynb_checkpoints/
+/logs/
+checkpoints/
+*.ckpt
+__pycache__/
+.DS_Store
+*.egg-info/
+*.egg
+.eggs/
+.vscode
+
+/data/
+!/*/data/
