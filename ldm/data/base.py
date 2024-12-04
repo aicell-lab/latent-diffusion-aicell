@@ -46,5 +46,6 @@ class MNISTWrapper(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         img, label = self.dataset[idx]
-        img = self.transform(img)
+        img = self.transform(img)  # This gives us [C,H,W]
+        img = img.permute(1, 2, 0)  # Convert to [H,W,C] to match model's expectation
         return {"image": img, "class_label": label}
