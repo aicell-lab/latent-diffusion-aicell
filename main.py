@@ -599,17 +599,47 @@ if __name__ == "__main__":
         lightning_config = config.pop("lightning", OmegaConf.create())
         # merge trainer cli with config
         trainer_config = lightning_config.get("trainer", OmegaConf.create())
-        # default to ddp
-        trainer_config["accelerator"] = "ddp"
+
+        # Copy any non-default args from command line
         for k in nondefault_trainer_args(opt):
             trainer_config[k] = getattr(opt, k)
-        if not "gpus" in trainer_config:
-            del trainer_config["accelerator"]
-            cpu = True
-        else:
-            gpuinfo = trainer_config["gpus"]
-            print(f"Running on GPUs {gpuinfo}")
+
+        # Handle device configuration and count GPUs in one place
+        if trainer_config.get("accelerator") == "gpu":
+            devices = trainer_config.get("devices", "auto")
+            trainer_config["devices"] = devices
+
+            if not torch.cuda.is_available():
+                raise ValueError(
+                    "GPU training requested but CUDA is not available. "
+                    "Only CUDA GPUs are supported for training. "
+                    "Use accelerator='cpu' for CPU training."
+                )
+
+            # Count GPUs and set strategy
+            if devices == "auto":
+                ngpu = torch.cuda.device_count()
+                if ngpu > 1:
+                    trainer_config["strategy"] = "ddp"
+            elif isinstance(devices, list):
+                ngpu = len(devices)
+                if ngpu > 1:
+                    trainer_config["strategy"] = "ddp"
+            elif isinstance(devices, int):
+                ngpu = devices
+                if ngpu > 1:
+                    trainer_config["strategy"] = "ddp"
+            else:
+                ngpu = 1
+
+            print(f"Running on {ngpu} GPUs")
             cpu = False
+        else:
+            trainer_config["accelerator"] = "cpu"
+            trainer_config["devices"] = 1
+            ngpu = 1
+            cpu = True
+
         trainer_opt = argparse.Namespace(**trainer_config)
         lightning_config.trainer = trainer_config
 
@@ -744,14 +774,6 @@ if __name__ == "__main__":
         # trainer = Trainer.from_argparse_args(trainer_opt, **trainer_kwargs)
         # Convert namespace to dictionary
         trainer_config = vars(trainer_opt)
-        # Force CPU usage
-        trainer_config.update(
-            {
-                "accelerator": "cpu",
-                "devices": 1,  # CPU requires an integer number of devices
-                "precision": "32",
-            }
-        )
         # Create trainer directly
         trainer = Trainer(**trainer_config, **trainer_kwargs)
         trainer.logdir = logdir  ###
@@ -771,10 +793,6 @@ if __name__ == "__main__":
 
         # configure learning rate
         bs, base_lr = config.data.params.batch_size, config.model.base_learning_rate
-        if not cpu:
-            ngpu = len(lightning_config.trainer.gpus.strip(",").split(","))
-        else:
-            ngpu = 1
         if "accumulate_grad_batches" in lightning_config.trainer:
             accumulate_grad_batches = lightning_config.trainer.accumulate_grad_batches
         else:
