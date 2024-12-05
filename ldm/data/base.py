@@ -32,6 +32,10 @@ class MNISTWrapper(torch.utils.data.Dataset):
         self.dataset = torchvision.datasets.MNIST(
             root=root, train=train, download=download
         )
+        # Take only first 100 samples for testing
+        self.dataset.data = self.dataset.data[:100]
+        self.dataset.targets = self.dataset.targets[:100]
+
         self.transform = torchvision.transforms.Compose(
             [
                 torchvision.transforms.ToTensor(),

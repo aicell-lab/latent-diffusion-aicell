@@ -447,11 +447,8 @@ class ImageLogger(Callback):
         if ((check_idx % self.batch_freq) == 0 or (check_idx in self.log_steps)) and (
             check_idx > 0 or self.log_first_step
         ):
-            try:
+            if self.log_steps:  # Only try to pop if there are steps left
                 self.log_steps.pop(0)
-            except IndexError as e:
-                print(e)
-                pass
             return True
         return False
 
@@ -474,26 +471,30 @@ class ImageLogger(Callback):
 
 
 class CUDACallback(Callback):
-    # see https://github.com/SeanNaren/minGPT/blob/master/mingpt/callback.py
     def on_train_epoch_start(self, trainer, pl_module):
-        # Reset the memory use counter
-        torch.cuda.reset_peak_memory_stats(trainer.root_gpu)
-        torch.cuda.synchronize(trainer.root_gpu)
-        self.start_time = time.time()
+        if trainer.strategy.root_device.type == "cuda":
+            torch.cuda.reset_peak_memory_stats(trainer.strategy.root_device.index)
+            torch.cuda.synchronize(trainer.strategy.root_device.index)
+            self.start_time = time.time()
 
-    def on_train_epoch_end(self, trainer, pl_module, outputs):
-        torch.cuda.synchronize(trainer.root_gpu)
-        max_memory = torch.cuda.max_memory_allocated(trainer.root_gpu) / 2**20
-        epoch_time = time.time() - self.start_time
+    def on_train_epoch_end(self, trainer, pl_module):
+        if trainer.strategy.root_device.type == "cuda":
+            torch.cuda.synchronize(trainer.strategy.root_device.index)
+            max_memory = (
+                torch.cuda.max_memory_allocated(trainer.strategy.root_device.index)
+                / 2**20
+            )
+            epoch_time = time.time() - self.start_time
 
-        try:
-            max_memory = trainer.training_type_plugin.reduce(max_memory)
-            epoch_time = trainer.training_type_plugin.reduce(epoch_time)
+            try:
+                # strategy.reduce() instead of training_type_plugin.reduce()
+                max_memory = trainer.strategy.reduce(max_memory)
+                epoch_time = trainer.strategy.reduce(epoch_time)
 
-            rank_zero_info(f"Average Epoch time: {epoch_time:.2f} seconds")
-            rank_zero_info(f"Average Peak memory {max_memory:.2f}MiB")
-        except AttributeError:
-            pass
+                rank_zero_info(f"Average Epoch time: {epoch_time:.2f} seconds")
+                rank_zero_info(f"Average Peak memory {max_memory:.2f}MiB")
+            except AttributeError:
+                pass
 
 
 if __name__ == "__main__":
@@ -743,6 +744,14 @@ if __name__ == "__main__":
         # trainer = Trainer.from_argparse_args(trainer_opt, **trainer_kwargs)
         # Convert namespace to dictionary
         trainer_config = vars(trainer_opt)
+        # Force CPU usage
+        trainer_config.update(
+            {
+                "accelerator": "cpu",
+                "devices": 1,  # CPU requires an integer number of devices
+                "precision": "32",
+            }
+        )
         # Create trainer directly
         trainer = Trainer(**trainer_config, **trainer_kwargs)
         trainer.logdir = logdir  ###
@@ -810,8 +819,10 @@ if __name__ == "__main__":
             except Exception:
                 melk()
                 raise
-        if not opt.no_test and not trainer.interrupted:
-            trainer.test(model, data)
+        # active below if we want to test directly after training
+        # we also need to add training_step to autoencoder.py and a path in the config
+        # if not opt.no_test and not trainer.interrupted:
+        #     trainer.test(model, data)
     except Exception:
         if opt.debug and trainer.global_rank == 0:
             try:

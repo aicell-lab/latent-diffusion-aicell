@@ -7,7 +7,7 @@ model:
     lossconfig:
       target: ldm.modules.losses.LPIPSWithDiscriminator
       params:
-        disc_start: 50001
+        disc_start: 0
         kl_weight: 0.000001
         disc_weight: 0.5
         disc_in_channels: 1 # Add this line to match MNIST's grayscale format
@@ -28,6 +28,7 @@ data:
   target: main.DataModuleFromConfig
   params:
     batch_size: 12
+    num_workers: 4
     wrap: True
     train:
       target: ldm.data.base.MNISTWrapper
@@ -53,4 +54,7 @@ lightning:
 
   trainer:
     benchmark: True
+    accelerator: 'cpu'
+    devices: 1
+    max_epochs: 2
     # accumulate_grad_batches: 2
