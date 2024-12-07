@@ -161,3 +161,28 @@ Files that are definitely important are:
 ### Important
 
 We go through the code step by step.
+
+### cluster stuff
+
+# rsync is preferred as it's more reliable and shows progress
+
+rsync -av --progress \
+ --exclude 'logs/' \
+ --exclude '\*.pyc' \
+ --exclude '**pycache**' \
+ --exclude '.git' \
+ . x_aleho@berzelius1.nsc.liu.se:/proj/aicell/users/x_aleho/latent-diffusion-aicell/
+
+# Set conda to create environments in project space
+
+export CONDA_ENVS_PATH=/proj/aicell/users/x_aleho/conda_envs
+mkdir -p /proj/aicell/users/x_aleho/conda_envs
+
+# Now create environment as before
+
+module load Mambaforge/23.3.1-1-hpc1-bdist
+mamba env create -f environment.yaml
+
+rsync -av x_aleho@berzelius1.nsc.liu.se:/proj/aicell/users/x_aleho/latent-diffusion-aicell/logs /Users/lapuerta/aicell/latent-diffusion-aicell
+
+rsync -av x_aleho@berzelius1.nsc.liu.se:/proj/aicell/users/x_aleho/latent-diffusion-aicell/logs/2024-12-07T10-15-57_autoencoder_kl_8x8x64_mnist_gpu /Users/lapuerta/aicell/latent-diffusion-aicell/logs/

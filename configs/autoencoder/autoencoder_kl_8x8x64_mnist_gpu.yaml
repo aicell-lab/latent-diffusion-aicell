@@ -1,0 +1,59 @@
+model:
+  base_learning_rate: 4.5e-6
+  target: ldm.models.autoencoder.AutoencoderKL
+  params:
+    monitor: 'val/rec_loss'
+    embed_dim: 64
+    lossconfig:
+      target: ldm.modules.losses.LPIPSWithDiscriminator
+      params:
+        disc_start: 50001
+        kl_weight: 0.000001
+        disc_weight: 0.5
+        disc_in_channels: 1 # Add this line to match MNIST's grayscale format
+
+    ddconfig:
+      double_z: True
+      z_channels: 64
+      resolution: 28 # MNIST size
+      in_channels: 1 # MNIST is grayscale
+      out_ch: 1 # MNIST is grayscale
+      ch: 128
+      ch_mult: [1, 2, 4] # Adjusted for 28x28
+      num_res_blocks: 2
+      attn_resolutions: [] # Remove attention for simple MNIST
+      dropout: 0.0
+
+data:
+  target: main.DataModuleFromConfig
+  params:
+    batch_size: 256 # Increase for A100
+    num_workers: 16 # As suggested in docs (1 GPU = 16 cores)
+    wrap: True
+    train:
+      target: ldm.data.mnist.MNISTWrapper
+      params:
+        root: data/mnist
+        train: True
+        download: True
+    validation:
+      target: ldm.data.mnist.MNISTWrapper
+      params:
+        root: data/mnist
+        train: False
+        download: True
+
+lightning:
+  callbacks:
+    image_logger:
+      target: main.ImageLogger
+      params:
+        batch_frequency: 1000
+        max_images: 8
+        increase_log_steps: True
+
+  trainer:
+    benchmark: True
+    max_epochs: 20
+    accelerator: 'gpu' # Change to GPU
+    devices: 1
