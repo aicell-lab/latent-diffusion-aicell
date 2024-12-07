@@ -1,0 +1,27 @@
+name: ldm-cuda
+channels:
+  - pytorch
+  - nvidia
+  - defaults
+dependencies:
+  - python=3.10
+  - pytorch=2.5.0
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=12.1
+  - numpy
+  - pip:
+      - albumentations
+      - opencv-python
+      - pudb
+      - imageio
+      - imageio-ffmpeg
+      - pytorch-lightning
+      - omegaconf
+      - test-tube
+      - streamlit
+      - einops
+      - torch-fidelity
+      - transformers
+      - taming-transformers-rom1504
+      - -e .
