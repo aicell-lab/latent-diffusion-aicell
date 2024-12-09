@@ -36,96 +36,65 @@ class MNISTWrapper(torch.utils.data.Dataset):
         return {"image": img, "class_label": label}
 
 
-class MNISTWebDataset(torch.utils.data.Dataset):
+class MNISTWebDataset:
     def __init__(self, root="data/mnist_wds", train=True, download=False):
         """
-        WebDataset wrapper for MNIST that maintains compatibility with MNISTWrapper.
+        WebDataset wrapper for MNIST that provides efficient streaming access.
         Args:
             root: Path to the WebDataset shards
             train: If True, load training set, else load test set
             download: Unused, kept for compatibility
         """
-        super().__init__()
-
-        # Read metadata for length
+        # Read metadata
         metadata_path = os.path.join(root, "metadata.json")
         with open(metadata_path, "r") as f:
             self.metadata = json.load(f)
 
-        # Set up the dataset
+        # Set up dataset parameters
         split = "train" if train else "test"
-        n_shards = self.metadata[f"{split}_shards"] - 1  # -1 because range is inclusive
-
-        # Use WebDataset's native braced pattern
+        n_shards = self.metadata[f"{split}_shards"] - 1
         pattern = os.path.join(root, f"mnist-{split}-{{00000..{n_shards:05d}}}.tar")
 
-        # Create dataset pipeline - note we're not using .map() here
-        self.dataset = (
-            wds.WebDataset(pattern)
-            .decode("pil")
-            .to_tuple("png", "cls")
-            .batched(1)  # This helps with deterministic behavior
-        )
-
-        # Store iterator for __getitem__
-        self.iterator = None
-
-        # Store length based on metadata
-        self.length = (
-            self.metadata["total_train_samples"]
-            if train
-            else self.metadata["total_test_samples"]
-        )
-
-        # Define transform
+        # Define transforms
         self.transform = torchvision.transforms.Compose(
             [
                 torchvision.transforms.ToTensor(),
-                torchvision.transforms.Normalize(
-                    mean=[-1.0], std=[2.0]
-                ),  # Scale to [-1,1]
+                torchvision.transforms.Normalize(mean=[-1.0], std=[2.0]),
             ]
         )
 
+        # Create dataset pipeline
+        shuffle_buffer = 1000 if train else 0
+
+        self.dataset = (
+            wds.WebDataset(pattern)
+            .shuffle(shuffle_buffer)
+            .decode("pil")
+            .to_tuple("png", "cls")
+            .map_tuple(self._transform_image, None)
+            .batched(12)
+            .map(self._format_batch_as_dict)
+        )
+
+        # Store length for compatibility
+        self.length = self.metadata[f"total_{split}_samples"]
+        # Uncomment for testing with subset
+        # self.length = min(500, self.length)
+
+    def _transform_image(self, img):
+        """Transform PIL image to tensor with correct format"""
+        if img.mode != "L":
+            img = img.convert("L")
+        img = self.transform(img)  # [1,H,W]
+        img = img.permute(
+            1, 2, 0
+        )  # Convert from [C,H,W] to [H,W,C] like in original wrapper
+        return img
+
+    def _format_batch_as_dict(self, batch):
+        """Convert batched tuple to dictionary format expected by model"""
+        images, labels = batch
+        return {"image": images, "class_label": labels}
+
     def __len__(self):
         return self.length
-
-    def __getitem__(self, idx):
-        if self.iterator is None:
-            self.iterator = iter(self.dataset)
-
-        try:
-            # Get next batch (which is actually a single sample due to batched(1))
-            image, label = next(self.iterator)
-
-            # Remove the batch dimension added by batched(1)
-            image = image[0]
-            label = label[0]
-
-            # Convert to grayscale if it's RGB
-            if image.mode != "L":
-                image = image.convert("L")
-
-            # Transform image
-            img = self.transform(image)  # [1,H,W]
-            img = img.permute(1, 2, 0)  # Convert to [H,W,1]
-
-            return {"image": img, "class_label": label}
-
-        except StopIteration:
-            self.iterator = iter(self.dataset)
-            image, label = next(self.iterator)
-
-            # Remove the batch dimension
-            image = image[0]
-            label = label[0]
-
-            # Convert to grayscale if it's RGB
-            if image.mode != "L":
-                image = image.convert("L")
-
-            # Transform image
-            img = self.transform(image)  # [1,H,W]
-            img = img.permute(1, 2, 0)  # Convert to [H,W,1]
-
-            return {"image": img, "class_label": label}

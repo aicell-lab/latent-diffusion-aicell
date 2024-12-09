@@ -10,26 +10,25 @@ model:
         disc_start: 50001
         kl_weight: 0.000001
         disc_weight: 0.5
-        disc_in_channels: 1 # Add this line to match MNIST's grayscale format
+        disc_in_channels: 1
 
     ddconfig:
       double_z: True
       z_channels: 64
-      resolution: 28 # MNIST size
-      in_channels: 1 # MNIST is grayscale
-      out_ch: 1 # MNIST is grayscale
+      resolution: 28
+      in_channels: 1
+      out_ch: 1
       ch: 128
-      ch_mult: [1, 2, 4] # Adjusted for 28x28
+      ch_mult: [1, 2, 4]
       num_res_blocks: 2
-      attn_resolutions: [] # Remove attention for simple MNIST
+      attn_resolutions: []
       dropout: 0.0
 
 data:
-  target: main.DataModuleFromConfig
+  target: main.WebDataModuleFromConfig # Changed from DataModuleFromConfig
   params:
     batch_size: 12
     num_workers: 4
-    wrap: True
     train:
       target: ldm.data.mnist.MNISTWebDataset
       params:
@@ -40,6 +39,7 @@ data:
       params:
         root: data/mnist_wds
         train: False
+    wrap: False # Changed to False since we don't need wrapping for WebDataset
 
 lightning:
   callbacks:

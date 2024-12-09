@@ -4,6 +4,7 @@ import time
 import torch
 import torchvision
 import pytorch_lightning as pl
+import webdataset as wds
 
 # new: from pytorch_lightning.utilities.parsing import LightningArgumentParser
 
@@ -163,6 +164,107 @@ def worker_init_fn(_):
         return np.random.seed(np.random.get_state()[1][current_id] + worker_id)
     else:
         return np.random.seed(np.random.get_state()[1][0] + worker_id)
+
+
+class LightningWebLoader(wds.WebLoader):
+    """WebLoader with length support for PyTorch Lightning."""
+
+    def __init__(self, *args, length=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._length = length
+
+    def __len__(self):
+        return self._length
+
+
+class WebDataModuleFromConfig(pl.LightningDataModule):
+    def __init__(
+        self,
+        batch_size,
+        train=None,
+        validation=None,
+        test=None,
+        predict=None,
+        wrap=False,
+        num_workers=None,
+        shuffle_test_loader=False,
+        shuffle_val_dataloader=False,
+    ):
+        super().__init__()
+        self.batch_size = batch_size
+        self.dataset_configs = dict()
+        self.num_workers = num_workers if num_workers is not None else batch_size * 2
+
+        if train is not None:
+            self.dataset_configs["train"] = train
+            self.train_dataloader = self._train_dataloader
+        if validation is not None:
+            self.dataset_configs["validation"] = validation
+            self.val_dataloader = partial(
+                self._val_dataloader, shuffle=shuffle_val_dataloader
+            )
+        if test is not None:
+            self.dataset_configs["test"] = test
+            self.test_dataloader = partial(
+                self._test_dataloader, shuffle=shuffle_test_loader
+            )
+        if predict is not None:
+            self.dataset_configs["predict"] = predict
+            self.predict_dataloader = self._predict_dataloader
+        self.wrap = wrap
+
+    def prepare_data(self):
+        for data_cfg in self.dataset_configs.values():
+            instantiate_from_config(data_cfg)
+
+    def setup(self, stage=None):
+        self.datasets = dict(
+            (k, instantiate_from_config(self.dataset_configs[k]))
+            for k in self.dataset_configs
+        )
+        if self.wrap:
+            for k in self.datasets:
+                self.datasets[k] = WrappedDataset(self.datasets[k])
+
+    def _train_dataloader(self):
+        length = len(self.datasets["train"]) // self.batch_size
+        return LightningWebLoader(
+            self.datasets["train"].dataset,
+            batch_size=None,
+            num_workers=self.num_workers,
+            shuffle=False,
+            persistent_workers=True,
+            length=length,
+        )
+
+    def _val_dataloader(self, shuffle=False):
+        length = len(self.datasets["validation"]) // self.batch_size
+        return LightningWebLoader(
+            self.datasets["validation"].dataset,
+            batch_size=None,
+            num_workers=self.num_workers,
+            shuffle=False,
+            persistent_workers=True,
+            length=length,
+        )
+
+    def _test_dataloader(self, shuffle=False):
+        return wds.WebLoader(
+            self.datasets["test"].dataset,
+            batch_size=None,
+            num_workers=self.num_workers,
+            shuffle=False,
+            persistent_workers=True,
+        )
+
+    def _predict_dataloader(self, shuffle=False):
+        return wds.WebLoader(
+            self.datasets["predict"].dataset,
+            batch_size=None,
+            num_workers=self.num_workers,
+            shuffle=False,
+            persistent_workers=True,
+        )
 
 
 class DataModuleFromConfig(pl.LightningDataModule):
