@@ -37,13 +37,16 @@ class MNISTWrapper(torch.utils.data.Dataset):
 
 
 class MNISTWebDataset:
-    def __init__(self, root="data/mnist_wds", train=True, download=False):
+    def __init__(
+        self, root="data/mnist_wds", train=True, download=False, batch_size=12
+    ):
         """
         WebDataset wrapper for MNIST that provides efficient streaming access.
         Args:
             root: Path to the WebDataset shards
             train: If True, load training set, else load test set
             download: Unused, kept for compatibility
+            batch_size: Batch size for batching samples
         """
         # Read metadata
         metadata_path = os.path.join(root, "metadata.json")
@@ -72,7 +75,7 @@ class MNISTWebDataset:
             .decode("pil")
             .to_tuple("png", "cls")
             .map_tuple(self._transform_image, None)
-            .batched(12)
+            .batched(batch_size)
             .map(self._format_batch_as_dict)
         )
 
@@ -86,9 +89,7 @@ class MNISTWebDataset:
         if img.mode != "L":
             img = img.convert("L")
         img = self.transform(img)  # [1,H,W]
-        img = img.permute(
-            1, 2, 0
-        )  # Convert from [C,H,W] to [H,W,C] like in original wrapper
+        img = img.permute(1, 2, 0)  # Convert from [C,H,W] to [H,W,C]
         return img
 
     def _format_batch_as_dict(self, batch):

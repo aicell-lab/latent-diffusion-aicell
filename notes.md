@@ -186,3 +186,29 @@ mamba env create -f environment.yaml
 rsync -av x_aleho@berzelius1.nsc.liu.se:/proj/aicell/users/x_aleho/latent-diffusion-aicell/logs /Users/lapuerta/aicell/latent-diffusion-aicell
 
 rsync -av x_aleho@berzelius1.nsc.liu.se:/proj/aicell/users/x_aleho/latent-diffusion-aicell/logs/2024-12-07T10-15-57_autoencoder_kl_8x8x64_mnist_gpu /Users/lapuerta/aicell/latent-diffusion-aicell/logs/
+
+rsync -av --progress \
+ --exclude 'logs/' \
+ --exclude '\*.pyc' \
+ --exclude '**pycache**' \
+ --exclude '.git' \
+ . x_aleho@berzelius1.nsc.liu.se:/proj/aicell/users/x_aleho/
+
+### steps when going to berzelius
+
+if big changes and we want to replace the whole repo:
+
+```
+rsync -av --progress \
+ --exclude 'logs/' \
+ --exclude '\*.pyc' \
+ --exclude '**pycache**' \
+ --exclude '.git' \
+ . x_aleho@berzelius1.nsc.liu.se:/proj/aicell/users/x_aleho/
+```
+
+then `ssh x_aleho@berzelius1.nsc.liu.se`
+
+then `interactive --gpus=1`
+then `module load Anaconda/2023.09-0-hpc1-bdist`
+then `conda activate /proj/aicell/users/x_aleho/conda_envs/ldm`

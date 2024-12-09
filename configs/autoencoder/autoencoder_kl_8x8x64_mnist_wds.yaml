@@ -27,18 +27,20 @@ model:
 data:
   target: main.WebDataModuleFromConfig # Changed from DataModuleFromConfig
   params:
-    batch_size: 12
+    batch_size: 24
     num_workers: 4
     train:
       target: ldm.data.mnist.MNISTWebDataset
       params:
         root: data/mnist_wds
         train: True
+        batch_size: ${data.params.batch_size} # Reference the global batch_size
     validation:
       target: ldm.data.mnist.MNISTWebDataset
       params:
         root: data/mnist_wds
         train: False
+        batch_size: ${data.params.batch_size}
     wrap: False # Changed to False since we don't need wrapping for WebDataset
 
 lightning:
