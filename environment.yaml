@@ -21,5 +21,6 @@ dependencies:
       - einops
       - torch-fidelity
       - transformers
+      - webdataset
       - taming-transformers-rom1504
       - -e .

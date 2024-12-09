@@ -27,21 +27,19 @@ model:
 data:
   target: main.DataModuleFromConfig
   params:
-    batch_size: 256 # Increase for A100
-    num_workers: 16 # As suggested in docs (1 GPU = 16 cores)
+    batch_size: 12
+    num_workers: 4
     wrap: True
     train:
-      target: ldm.data.mnist.MNISTWrapper
+      target: ldm.data.mnist.MNISTWebDataset
       params:
-        root: data/mnist
+        root: data/mnist_wds
         train: True
-        download: True
     validation:
-      target: ldm.data.mnist.MNISTWrapper
+      target: ldm.data.mnist.MNISTWebDataset
       params:
-        root: data/mnist
+        root: data/mnist_wds
         train: False
-        download: True
 
 lightning:
   callbacks:
@@ -55,5 +53,4 @@ lightning:
   trainer:
     benchmark: True
     max_epochs: 20
-    accelerator: 'gpu' # Change to GPU
-    devices: 1
+    accelerator: 'cpu'
