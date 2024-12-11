@@ -519,9 +519,15 @@ class AutoencoderKL(pl.LightningModule):
             for k, v in log_dict_disc.items()
         }
 
-        self.log("val/rec_loss", log_dict_ae["val/rec_loss"], sync_dist=True)
-        self.log_dict(log_dict_ae, sync_dist=True)
-        self.log_dict(log_dict_disc, sync_dist=True)
+        self.log(
+            "val/rec_loss",
+            log_dict_ae["val/rec_loss"],
+            sync_dist=True,
+            on_step=True,
+            on_epoch=True,
+        )
+        self.log_dict(log_dict_ae, sync_dist=True, on_step=True, on_epoch=True)
+        self.log_dict(log_dict_disc, sync_dist=True, on_step=True, on_epoch=True)
         return self.log_dict
 
     def configure_optimizers(self):

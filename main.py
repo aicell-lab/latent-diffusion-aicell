@@ -166,17 +166,6 @@ def worker_init_fn(_):
         return np.random.seed(np.random.get_state()[1][0] + worker_id)
 
 
-class LightningWebLoader(wds.WebLoader):
-    """WebLoader with length support for PyTorch Lightning."""
-
-    def __init__(self, *args, length=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._length = length
-
-    def __len__(self):
-        return self._length
-
-
 class WebDataModuleFromConfig(pl.LightningDataModule):
     def __init__(
         self,
@@ -227,25 +216,21 @@ class WebDataModuleFromConfig(pl.LightningDataModule):
                 self.datasets[k] = WrappedDataset(self.datasets[k])
 
     def _train_dataloader(self):
-        length = len(self.datasets["train"]) // self.batch_size
-        return LightningWebLoader(
+        return wds.WebLoader(
             self.datasets["train"].dataset,
             batch_size=None,
             num_workers=self.num_workers,
             shuffle=False,
             persistent_workers=True,
-            length=length,
         )
 
     def _val_dataloader(self, shuffle=False):
-        length = len(self.datasets["validation"]) // self.batch_size
-        return LightningWebLoader(
+        return wds.WebLoader(
             self.datasets["validation"].dataset,
             batch_size=None,
             num_workers=self.num_workers,
             shuffle=False,
             persistent_workers=True,
-            length=length,
         )
 
     def _test_dataloader(self, shuffle=False):
