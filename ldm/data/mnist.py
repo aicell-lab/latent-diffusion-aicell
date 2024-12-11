@@ -70,7 +70,9 @@ class MNISTWebDataset:
         shuffle_buffer = 1000 if train else 0
 
         self.dataset = (
-            wds.WebDataset(pattern, nodesplitter=wds.shardlists.split_by_node)
+            wds.WebDataset(
+                pattern, nodesplitter=wds.shardlists.split_by_node, shardshuffle=False
+            )
             .shuffle(shuffle_buffer)
             .decode("pil")
             .to_tuple("png", "cls")

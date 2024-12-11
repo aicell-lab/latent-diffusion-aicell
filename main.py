@@ -9,7 +9,7 @@ import webdataset as wds
 # new: from pytorch_lightning.utilities.parsing import LightningArgumentParser
 
 from packaging import version
-from omegaconf import OmegaConf
+from omegaconf import OmegaConf, ListConfig
 from torch.utils.data import random_split, DataLoader, Dataset, Subset
 from functools import partial
 from PIL import Image
@@ -745,6 +745,7 @@ if __name__ == "__main__":
                     "save_dir": logdir,
                     "offline": opt.debug,
                     "id": nowname,
+                    "project": "modern-latent-diffusion",
                 },
             },
             "tensorboard": {
@@ -755,13 +756,26 @@ if __name__ == "__main__":
                 },
             },
         }
-        default_logger_cfg = default_logger_cfgs["tensorboard"]
+
+        # Instead of selecting one default logger, use both
+        loggers = []
         if "logger" in lightning_config:
             logger_cfg = lightning_config.logger
+            if isinstance(logger_cfg, ListConfig):
+                # Config specifies multiple loggers
+                for logger_conf in logger_cfg:
+                    loggers.append(instantiate_from_config(logger_conf))
+            else:
+                # Config specifies single logger
+                loggers.append(instantiate_from_config(logger_cfg))
         else:
-            logger_cfg = OmegaConf.create()
-        logger_cfg = OmegaConf.merge(default_logger_cfg, logger_cfg)
-        trainer_kwargs["logger"] = instantiate_from_config(logger_cfg)
+            # Use both default loggers if none specified
+            loggers = [
+                instantiate_from_config(default_logger_cfgs["tensorboard"]),
+                instantiate_from_config(default_logger_cfgs["wandb"]),
+            ]
+
+        trainer_kwargs["logger"] = loggers
 
         # modelcheckpoint - use TrainResult/EvalResult(checkpoint_on=metric) to
         # specify which metric is used to determine best models

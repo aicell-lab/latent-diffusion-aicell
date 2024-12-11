@@ -22,5 +22,6 @@ dependencies:
       - torch-fidelity
       - transformers
       - webdataset
+      - wandb
       - taming-transformers-rom1504
       - -e .

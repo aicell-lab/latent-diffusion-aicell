@@ -25,4 +25,5 @@ dependencies:
       - transformers
       - taming-transformers-rom1504
       - webdataset
+      - wandb
       - -e .
