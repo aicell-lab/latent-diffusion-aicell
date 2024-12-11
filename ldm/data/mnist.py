@@ -14,8 +14,8 @@ class MNISTWrapper(torch.utils.data.Dataset):
             root=root, train=train, download=download
         )
         # Take only first 5000 samples for now
-        self.dataset.data = self.dataset.data[:500]
-        self.dataset.targets = self.dataset.targets[:500]
+        # self.dataset.data = self.dataset.data[:500]
+        # self.dataset.targets = self.dataset.targets[:500]
 
         self.transform = torchvision.transforms.Compose(
             [
@@ -70,7 +70,7 @@ class MNISTWebDataset:
         shuffle_buffer = 1000 if train else 0
 
         self.dataset = (
-            wds.WebDataset(pattern)
+            wds.WebDataset(pattern, nodesplitter=wds.shardlists.split_by_node)
             .shuffle(shuffle_buffer)
             .decode("pil")
             .to_tuple("png", "cls")

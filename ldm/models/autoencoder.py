@@ -441,9 +441,24 @@ class AutoencoderKL(pl.LightningModule):
         self.manual_backward(discloss)
         opt_disc.step()
 
-        # Log everything
+        # Ensure tensors are on correct device and properly synced for distributed training
+        log_dict_ae = {
+            k: v.to(self.device) if torch.is_tensor(v) else v
+            for k, v in log_dict_ae.items()
+        }
+        log_dict_disc = {
+            k: v.to(self.device) if torch.is_tensor(v) else v
+            for k, v in log_dict_disc.items()
+        }
+
         self.log(
-            "aeloss", aeloss, prog_bar=True, logger=True, on_step=True, on_epoch=True
+            "aeloss",
+            aeloss,
+            prog_bar=True,
+            logger=True,
+            on_step=True,
+            on_epoch=True,
+            sync_dist=True,
         )
         self.log(
             "discloss",
@@ -452,12 +467,23 @@ class AutoencoderKL(pl.LightningModule):
             logger=True,
             on_step=True,
             on_epoch=True,
+            sync_dist=True,
         )
         self.log_dict(
-            log_dict_ae, prog_bar=False, logger=True, on_step=True, on_epoch=False
+            log_dict_ae,
+            prog_bar=False,
+            logger=True,
+            on_step=True,
+            on_epoch=False,
+            sync_dist=True,
         )
         self.log_dict(
-            log_dict_disc, prog_bar=False, logger=True, on_step=True, on_epoch=False
+            log_dict_disc,
+            prog_bar=False,
+            logger=True,
+            on_step=True,
+            on_epoch=False,
+            sync_dist=True,
         )
 
     def validation_step(self, batch, batch_idx):
@@ -483,9 +509,19 @@ class AutoencoderKL(pl.LightningModule):
             split="val",
         )
 
-        self.log("val/rec_loss", log_dict_ae["val/rec_loss"])
-        self.log_dict(log_dict_ae)
-        self.log_dict(log_dict_disc)
+        # Ensure all values are on the correct device
+        log_dict_ae = {
+            k: v.to(self.device) if torch.is_tensor(v) else v
+            for k, v in log_dict_ae.items()
+        }
+        log_dict_disc = {
+            k: v.to(self.device) if torch.is_tensor(v) else v
+            for k, v in log_dict_disc.items()
+        }
+
+        self.log("val/rec_loss", log_dict_ae["val/rec_loss"], sync_dist=True)
+        self.log_dict(log_dict_ae, sync_dist=True)
+        self.log_dict(log_dict_disc, sync_dist=True)
         return self.log_dict
 
     def configure_optimizers(self):
