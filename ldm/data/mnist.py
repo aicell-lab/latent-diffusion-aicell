@@ -1,5 +1,6 @@
 import os
 import json
+import io
 
 import torch
 import torchvision
@@ -86,12 +87,27 @@ class MNISTWebDataset:
         # Uncomment for testing with subset
         # self.length = min(500, self.length)
 
-    def _transform_image(self, img):
-        """Transform PIL image to tensor with correct format"""
-        if img.mode != "L":
-            img = img.convert("L")
-        img = self.transform(img)  # [1,H,W]
-        img = img.permute(1, 2, 0)  # Convert from [C,H,W] to [H,W,C]
+    # def _transform_image(self, img):
+    #     """Transform PIL image to tensor with correct format"""
+    #     if img.mode != "L":
+    #         img = img.convert("L")
+    #     img = self.transform(img)  # [1,H,W]
+    #     img = img.permute(1, 2, 0)  # Convert from [C,H,W] to [H,W,C]
+    #     return img
+
+    def _transform_image(self, img_bytes):
+        """Transform numpy bytes to tensor and normalize"""
+        # Load numpy array from bytes
+        img = np.load(io.BytesIO(img_bytes), allow_pickle=False)  # Shape: (5, H, W)
+        img = torch.from_numpy(img).float()  # Convert to tensor
+
+        # Compute min and max across the channel dimension (dim=(1, 2))
+        c_min = img.amin(dim=(1, 2), keepdim=True)  # Minimum per channel
+        c_max = img.amax(dim=(1, 2), keepdim=True)  # Maximum per channel
+
+        # Normalize all channels at once
+        img = 2 * (img - c_min) / (c_max - c_min) - 1
+
         return img
 
     def _format_batch_as_dict(self, batch):

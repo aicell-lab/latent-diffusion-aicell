@@ -10,10 +10,11 @@ from sklearn.model_selection import train_test_split
 import pandas as pd
 import io
 import tifffile
+import torch
+from torchvision.transforms.functional import resize
 
 
 async def download_sample_async(session, row, tar):
-    """Download all channels for one sample, stack them, and add to tar"""
     channels = []
 
     # Download each channel
@@ -30,16 +31,16 @@ async def download_sample_async(session, row, tar):
             img = tifffile.imread(io.BytesIO(img_data))
             channels.append(img)
 
-    # Stack into 5-channel array and normalize to [0,1]
-    combined = np.stack(channels, axis=0)  # Shape: (5, H, W)
-    combined = combined.astype(np.float32)
-    for i in range(5):  # Normalize each channel independently
-        c_min, c_max = combined[i].min(), combined[i].max()
-        combined[i] = (combined[i] - c_min) / (c_max - c_min)
+    # Stack into 5-channel array
+    combined = np.stack(channels, axis=0).astype(np.float32)  # Shape: (5, H, W)
+
+    # Resize the stacked array (all channels together)
+    combined_tensor = torch.from_numpy(combined)  # Convert to tensor
+    resized_tensor = resize(combined_tensor, [512, 512])  # Resize to (5, 512, 512)
 
     # Save to buffer
     buffer = io.BytesIO()
-    np.save(buffer, combined)
+    np.save(buffer, resized_tensor.numpy())
     buffer.seek(0)
 
     # Write to tar

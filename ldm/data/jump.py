@@ -42,7 +42,7 @@ class JumpWebDataset:
                 pattern, nodesplitter=wds.shardlists.split_by_node, shardshuffle=False
             )
             .shuffle(shuffle_buffer)
-            .decode()  # No "pil" arg needed - we're loading .npy files not images
+            # .decode()  # No "pil" arg needed - we're loading .npy files not images
             .to_tuple(
                 "image.npy"
             )  # Only one tuple element - no labels needed for autoencoder
@@ -57,15 +57,9 @@ class JumpWebDataset:
         self.length = (n_shards + 1) * samples_per_shard
 
     def _transform_image(self, img_bytes):
-        """Transform numpy bytes to tensor
-        Different from MNIST:
-        - Input is .npy bytes instead of PIL image
-        - No need to convert to grayscale
-        - No normalization needed (done during download)
-        - Different channel order handling (5 channels vs 1)
-        """
+        """Transform numpy bytes to tensor"""
         # Load numpy array from bytes
-        img = np.load(io.BytesIO(img_bytes))
+        img = np.load(io.BytesIO(img_bytes), allow_pickle=False)
 
         # Convert to tensor - already in [C,H,W] format from download script
         img = torch.from_numpy(img)

@@ -7,6 +7,7 @@ model:
     lossconfig:
       target: ldm.modules.losses.LPIPSWithDiscriminator
       params:
+        perceptual_weight: 0 # this function currently works only with rgb
         disc_start: 50001
         kl_weight: 0.000001
         disc_weight: 0.5
@@ -15,11 +16,12 @@ model:
     ddconfig:
       double_z: True
       z_channels: 64
-      resolution: 1024 # JUMP image size
+      resolution: 512 # JUMP image size
       in_channels: 5 # JUMP channels
       out_ch: 5 # JUMP channels
       ch: 128
-      ch_mult: [1, 2, 4, 8] # Might need adjustment for 1024x1024
+      ch_mult: [1, 2, 4, 8]
+      # ch_mult: [1, 2, 4, 8] # needs adjustment for 1080x1080
       num_res_blocks: 2
       attn_resolutions: []
       dropout: 0.0
@@ -28,7 +30,7 @@ data:
   target: main.WebDataModuleFromConfig
   params:
     batch_size: 1 # Start small due to image size
-    num_workers: 4
+    num_workers: 1
     train:
       target: ldm.data.jump.JumpWebDataset
       params:
@@ -45,3 +47,8 @@ lightning:
     benchmark: True
     max_epochs: 20
     accelerator: 'cpu'
+
+  logger:
+    - target: pytorch_lightning.loggers.WandbLogger
+      params:
+        project: 'jump'
