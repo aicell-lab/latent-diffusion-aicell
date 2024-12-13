@@ -51,8 +51,8 @@ Below are some future deliverables, with no particular order.
 
 - [x] MNIST VAE training on CPU
 - [x] MNIST VAE training on GPU
-- [ ] Apple Metal/MPS support
-- [ ] ImageNet support
+- [x] MNIST VAE training on multi-GPU
+- [x] Webdataset support
 - [ ] Cell Painting dataset support
 - [ ] Support for arbitrary datasets
 - [ ] Update diffusion model components
