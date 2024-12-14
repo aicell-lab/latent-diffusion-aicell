@@ -204,7 +204,8 @@ rsync -av --progress \
  --exclude '\*.pyc' \
  --exclude '**pycache**' \
  --exclude '.git' \
- . x_aleho@berzelius1.nsc.liu.se:/proj/aicell/users/x_aleho/
+ --exclude 'wandb' \
+ . x_aleho@berzelius1.nsc.liu.se:/proj/aicell/users/x_aleho/modern-latent-diffusion
 ```
 
 then `ssh x_aleho@berzelius1.nsc.liu.se`

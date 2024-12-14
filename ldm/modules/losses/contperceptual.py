@@ -192,8 +192,11 @@ class SimpleLPIPS(nn.Module):
         weights=None,
     ):
         rec_loss = torch.abs(inputs.contiguous() - reconstructions.contiguous())
-        p_loss = self.perceptual_loss(inputs.contiguous(), reconstructions.contiguous())
-        rec_loss = rec_loss + self.perceptual_weight * p_loss
+        if self.perceptual_weight > 0:
+            p_loss = self.perceptual_loss(
+                inputs.contiguous(), reconstructions.contiguous()
+            )
+            rec_loss = rec_loss + self.perceptual_weight * p_loss
 
         nll_loss = rec_loss / torch.exp(self.logvar) + self.logvar
         nll_loss = torch.mean(nll_loss)
