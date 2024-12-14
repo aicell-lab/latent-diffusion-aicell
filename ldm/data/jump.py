@@ -16,6 +16,41 @@ class NumpyLoader(torch.nn.Module):
         return torch.from_numpy(img).float()
 
 
+class MinMaxNormalize(torch.nn.Module):
+    """Normalize tensor to [0,1] range"""
+
+    def forward(self, x):
+        # Handle each channel separately to preserve relative intensities
+        x_norm = torch.zeros_like(x)
+        for c in range(x.shape[-1]):  # Assuming [H,W,C] format
+            channel = x[..., c]
+            min_val = channel.min()
+            max_val = channel.max()
+            if max_val - min_val > 0:  # Avoid division by zero
+                x_norm[..., c] = (channel - min_val) / (max_val - min_val)
+            else:
+                x_norm[..., c] = (
+                    channel - min_val
+                )  # If constant channel, normalize to 0
+        return x_norm
+
+
+class EfficientMinMaxNormalize(torch.nn.Module):
+    def forward(self, x):
+        # Reshape to [C, H*W] to process all channels at once
+        x_reshaped = x.reshape(x.shape[-1], -1)
+
+        # Calculate min/max for all channels simultaneously
+        min_vals = x_reshaped.min(dim=1, keepdim=True)[0]
+        max_vals = x_reshaped.max(dim=1, keepdim=True)[0]
+
+        # Normalize in-place
+        x_reshaped = (x_reshaped - min_vals) / (max_vals - min_vals + 1e-8)
+
+        # Reshape back
+        return x_reshaped.reshape(x.shape)
+
+
 class JumpWebDataset:
     def __init__(self, root="data/jump_wds", train=True, download=False, batch_size=1):
         """
@@ -42,13 +77,14 @@ class JumpWebDataset:
             split_dir, f"shard_{{00000000..{max_shard:08d}..10}}.tar"
         )
 
-        # Define transforms
+        # Define transforms: MinMax normalize to [0,1] first, then normalize to [-1,1]
         self.transform = transforms.Compose(
             [
                 NumpyLoader(),
+                EfficientMinMaxNormalize(),  # First normalize to [0,1]
                 transforms.Normalize(
-                    mean=[0.5, 0.5, 0.5, 0.5, 0.5],  # One per channel
-                    std=[0.5, 0.5, 0.5, 0.5, 0.5],  # One per channel
+                    mean=[0.5, 0.5, 0.5, 0.5, 0.5],  # This shifts [0,1] to [-1,1]
+                    std=[0.5, 0.5, 0.5, 0.5, 0.5],  # This scales it to [-1,1]
                 ),
             ]
         )

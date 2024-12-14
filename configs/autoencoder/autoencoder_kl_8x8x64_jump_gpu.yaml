@@ -32,7 +32,7 @@ model:
 data:
   target: main.WebDataModuleFromConfig
   params:
-    batch_size: 1 # Start small due to image size
+    batch_size: 16 # Start small due to image size
     num_workers: 1
     train:
       target: ldm.data.jump.JumpWebDataset
@@ -49,7 +49,8 @@ lightning:
   trainer:
     benchmark: True
     max_epochs: 20
-    accelerator: 'cpu'
+    accelerator: 'gpu'
+    devices: [0]
 
   logger:
     - target: pytorch_lightning.loggers.WandbLogger

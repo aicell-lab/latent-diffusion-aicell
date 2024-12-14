@@ -1,0 +1,305 @@
+.
+├── LICENSE
+├── README.md
+├── __pycache__
+│   └── main.cpython-312.pyc
+├── assets
+│   ├── a-painting-of-a-fire.png
+│   ├── a-photograph-of-a-fire.png
+│   ├── a-shirt-with-a-fire-printed-on-it.png
+│   ├── a-shirt-with-the-inscription-'fire'.png
+│   ├── a-watercolor-painting-of-a-fire.png
+│   ├── birdhouse.png
+│   ├── fire.png
+│   ├── inpainting.png
+│   ├── modelfigure.png
+│   ├── rdm-preview.jpg
+│   ├── reconstruction1.png
+│   ├── reconstruction2.png
+│   ├── results.gif
+│   ├── the-earth-is-on-fire,-oil-on-canvas.png
+│   ├── txt2img-convsample.png
+│   └── txt2img-preview.png
+├── configs
+│   ├── autoencoder
+│   │   ├── autoencoder_kl_16x16x16.yaml
+│   │   ├── autoencoder_kl_32x32x4.yaml
+│   │   ├── autoencoder_kl_64x64x3.yaml
+│   │   ├── autoencoder_kl_8x8x64.yaml
+│   │   ├── autoencoder_kl_8x8x64_jump.yaml
+│   │   ├── autoencoder_kl_8x8x64_mnist.yaml
+│   │   ├── autoencoder_kl_8x8x64_mnist_wds.yaml
+│   │   ├── autoencoder_kl_8x8x64_mnist_wds_1gpu.yaml
+│   │   └── autoencoder_kl_8x8x64_mnist_wds_2gpu.yaml
+│   ├── latent-diffusion
+│   │   ├── celebahq-ldm-vq-4.yaml
+│   │   ├── cin-ldm-vq-f8.yaml
+│   │   ├── cin256-v2.yaml
+│   │   ├── ffhq-ldm-vq-4.yaml
+│   │   ├── lsun_bedrooms-ldm-vq-4.yaml
+│   │   ├── lsun_churches-ldm-kl-8.yaml
+│   │   └── txt2img-1p4B-eval.yaml
+│   └── retrieval-augmented-diffusion
+│       └── 768x768.yaml
+├── data
+│   ├── DejaVuSans.ttf
+│   ├── example_conditioning
+│   │   ├── superresolution
+│   │   │   └── sample_0.jpg
+│   │   └── text_conditional
+│   │       └── sample_0.txt
+│   ├── imagenet_clsidx_to_label.txt
+│   ├── imagenet_train_hr_indices.p
+│   ├── imagenet_val_hr_indices.p
+│   ├── index_synset.yaml
+│   ├── inpainting_examples
+│   │   ├── 6458524847_2f4c361183_k.png
+│   │   ├── 6458524847_2f4c361183_k_mask.png
+│   │   ├── 8399166846_f6fb4e4b8e_k.png
+│   │   ├── 8399166846_f6fb4e4b8e_k_mask.png
+│   │   ├── alex-iby-G_Pk4D9rMLs.png
+│   │   ├── alex-iby-G_Pk4D9rMLs_mask.png
+│   │   ├── bench2.png
+│   │   ├── bench2_mask.png
+│   │   ├── bertrand-gabioud-CpuFzIsHYJ0.png
+│   │   ├── bertrand-gabioud-CpuFzIsHYJ0_mask.png
+│   │   ├── billow926-12-Wc-Zgx6Y.png
+│   │   ├── billow926-12-Wc-Zgx6Y_mask.png
+│   │   ├── overture-creations-5sI6fQgYIuo.png
+│   │   ├── overture-creations-5sI6fQgYIuo_mask.png
+│   │   ├── photo-1583445095369-9c651e7e5d34.png
+│   │   └── photo-1583445095369-9c651e7e5d34_mask.png
+│   ├── jump_wds
+│   │   ├── test
+│   │   │   └── shard_00000000.tar
+│   │   ├── train
+│   │   │   ├── shard_00000000.tar
+│   │   │   ├── shard_00000010.tar
+│   │   │   ├── shard_00000020.tar
+│   │   │   ├── shard_00000030.tar
+│   │   │   ├── shard_00000040.tar
+│   │   │   └── shard_00000050.tar
+│   │   └── val
+│   │       └── shard_00000000.tar
+│   ├── mnist
+│   │   └── MNIST
+│   │       └── raw
+│   └── mnist_wds
+│       ├── metadata.json
+│       ├── mnist-test-00000.tar
+│       ├── mnist-test-00001.tar
+│       ├── mnist-test-00002.tar
+│       ├── mnist-test-00003.tar
+│       ├── mnist-test-00004.tar
+│       ├── mnist-test-00005.tar
+│       ├── mnist-test-00006.tar
+│       ├── mnist-test-00007.tar
+│       ├── mnist-test-00008.tar
+│       ├── mnist-test-00009.tar
+│       ├── mnist-train-00000.tar
+│       ├── mnist-train-00001.tar
+│       ├── mnist-train-00002.tar
+│       ├── mnist-train-00003.tar
+│       ├── mnist-train-00004.tar
+│       ├── mnist-train-00005.tar
+│       ├── mnist-train-00006.tar
+│       ├── mnist-train-00007.tar
+│       ├── mnist-train-00008.tar
+│       ├── mnist-train-00009.tar
+│       ├── mnist-train-00010.tar
+│       ├── mnist-train-00011.tar
+│       ├── mnist-train-00012.tar
+│       ├── mnist-train-00013.tar
+│       ├── mnist-train-00014.tar
+│       ├── mnist-train-00015.tar
+│       ├── mnist-train-00016.tar
+│       ├── mnist-train-00017.tar
+│       ├── mnist-train-00018.tar
+│       ├── mnist-train-00019.tar
+│       ├── mnist-train-00020.tar
+│       ├── mnist-train-00021.tar
+│       ├── mnist-train-00022.tar
+│       ├── mnist-train-00023.tar
+│       ├── mnist-train-00024.tar
+│       ├── mnist-train-00025.tar
+│       ├── mnist-train-00026.tar
+│       ├── mnist-train-00027.tar
+│       ├── mnist-train-00028.tar
+│       ├── mnist-train-00029.tar
+│       ├── mnist-train-00030.tar
+│       ├── mnist-train-00031.tar
+│       ├── mnist-train-00032.tar
+│       ├── mnist-train-00033.tar
+│       ├── mnist-train-00034.tar
+│       ├── mnist-train-00035.tar
+│       ├── mnist-train-00036.tar
+│       ├── mnist-train-00037.tar
+│       ├── mnist-train-00038.tar
+│       ├── mnist-train-00039.tar
+│       ├── mnist-train-00040.tar
+│       ├── mnist-train-00041.tar
+│       ├── mnist-train-00042.tar
+│       ├── mnist-train-00043.tar
+│       ├── mnist-train-00044.tar
+│       ├── mnist-train-00045.tar
+│       ├── mnist-train-00046.tar
+│       ├── mnist-train-00047.tar
+│       ├── mnist-train-00048.tar
+│       ├── mnist-train-00049.tar
+│       ├── mnist-train-00050.tar
+│       ├── mnist-train-00051.tar
+│       ├── mnist-train-00052.tar
+│       ├── mnist-train-00053.tar
+│       ├── mnist-train-00054.tar
+│       ├── mnist-train-00055.tar
+│       ├── mnist-train-00056.tar
+│       ├── mnist-train-00057.tar
+│       ├── mnist-train-00058.tar
+│       └── mnist-train-00059.tar
+├── environment-cuda.yaml
+├── environment-old.yaml
+├── environment.yaml
+├── folder_tree.txt
+├── latent_diffusion.egg-info
+│   ├── PKG-INFO
+│   ├── SOURCES.txt
+│   ├── dependency_links.txt
+│   ├── requires.txt
+│   └── top_level.txt
+├── ldm
+│   ├── __pycache__
+│   │   └── util.cpython-312.pyc
+│   ├── data
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-312.pyc
+│   │   │   ├── base.cpython-312.pyc
+│   │   │   ├── jump.cpython-312.pyc
+│   │   │   └── mnist.cpython-312.pyc
+│   │   ├── base.py
+│   │   ├── imagenet.py
+│   │   ├── jump.py
+│   │   ├── lsun.py
+│   │   └── mnist.py
+│   ├── lr_scheduler.py
+│   ├── models
+│   │   ├── __pycache__
+│   │   │   └── autoencoder.cpython-312.pyc
+│   │   ├── autoencoder.py
+│   │   └── diffusion
+│   │       ├── __init__.py
+│   │       ├── classifier.py
+│   │       ├── ddim.py
+│   │       ├── ddpm.py
+│   │       └── plms.py
+│   ├── modules
+│   │   ├── __pycache__
+│   │   │   └── attention.cpython-312.pyc
+│   │   ├── attention.py
+│   │   ├── diffusionmodules
+│   │   │   ├── __init__.py
+│   │   │   ├── __pycache__
+│   │   │   ├── model.py
+│   │   │   ├── openaimodel.py
+│   │   │   └── util.py
+│   │   ├── distributions
+│   │   │   ├── __init__.py
+│   │   │   ├── __pycache__
+│   │   │   └── distributions.py
+│   │   ├── ema.py
+│   │   ├── encoders
+│   │   │   ├── __init__.py
+│   │   │   └── modules.py
+│   │   ├── image_degradation
+│   │   │   ├── __init__.py
+│   │   │   ├── bsrgan.py
+│   │   │   ├── bsrgan_light.py
+│   │   │   ├── utils
+│   │   │   └── utils_image.py
+│   │   ├── losses
+│   │   │   ├── __init__.py
+│   │   │   ├── __pycache__
+│   │   │   ├── contperceptual.py
+│   │   │   └── vqperceptual.py
+│   │   └── x_transformer.py
+│   └── util.py
+├── main.py
+├── models
+│   ├── first_stage_models
+│   │   ├── kl-f16
+│   │   │   └── config.yaml
+│   │   ├── kl-f32
+│   │   │   └── config.yaml
+│   │   ├── kl-f4
+│   │   │   └── config.yaml
+│   │   ├── kl-f8
+│   │   │   └── config.yaml
+│   │   ├── vq-f16
+│   │   │   └── config.yaml
+│   │   ├── vq-f4
+│   │   │   └── config.yaml
+│   │   ├── vq-f4-noattn
+│   │   │   └── config.yaml
+│   │   ├── vq-f8
+│   │   │   └── config.yaml
+│   │   └── vq-f8-n256
+│   │       └── config.yaml
+│   └── ldm
+│       ├── bsr_sr
+│       │   └── config.yaml
+│       ├── celeba256
+│       │   └── config.yaml
+│       ├── cin256
+│       │   └── config.yaml
+│       ├── ffhq256
+│       │   └── config.yaml
+│       ├── inpainting_big
+│       │   └── config.yaml
+│       ├── layout2img-openimages256
+│       │   └── config.yaml
+│       ├── lsun_beds256
+│       │   └── config.yaml
+│       ├── lsun_churches256
+│       │   └── config.yaml
+│       ├── semantic_synthesis256
+│       │   └── config.yaml
+│       ├── semantic_synthesis512
+│       │   └── config.yaml
+│       └── text2img256
+│           └── config.yaml
+├── notebook_helpers.py
+├── notebooks
+│   ├── taming
+│   │   └── modules
+│   │       └── autoencoder
+│   ├── vae_mnist.ipynb
+│   └── webdataset.ipynb
+├── notes.md
+├── project_tree.txt
+├── scripts
+│   ├── download_first_stages.sh
+│   ├── download_models.sh
+│   ├── inpaint.py
+│   ├── jump
+│   │   ├── data
+│   │   │   ├── jump_df.parquet
+│   │   │   └── subsets
+│   │   ├── debug.ipynb
+│   │   ├── download_images.py
+│   │   ├── explore.ipynb
+│   │   ├── sampling.ipynb
+│   │   └── viz.ipynb
+│   ├── knn2img.py
+│   ├── latent_imagenet_diffusion.ipynb
+│   ├── mnist_to_webdataset.py
+│   ├── sample_diffusion.py
+│   ├── train_searcher.py
+│   └── txt2img.py
+├── setup.py
+├── taming
+│   └── modules
+│       └── autoencoder
+│           └── lpips
+└── transfer
+
+75 directories, 228 files

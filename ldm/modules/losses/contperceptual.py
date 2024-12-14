@@ -213,3 +213,67 @@ class SimpleLPIPS(nn.Module):
             f"{split}/rec_loss": rec_loss.detach().mean(),
         }
         return loss, log
+
+
+class SimpleReconstructionLoss(nn.Module):
+    def __init__(
+        self,
+        disc_start=None,  # Ignored
+        logvar_init=0.0,  # Same as SimpleLPIPS
+        kl_weight=0.0,  # Ignored
+        pixelloss_weight=1.0,  # Weight for reconstruction loss
+        disc_num_layers=None,  # Ignored
+        disc_in_channels=None,  # Ignored
+        disc_factor=None,  # Ignored
+        disc_weight=None,  # Ignored
+        perceptual_weight=0.0,  # Ignored
+        use_actnorm=False,  # Ignored
+        disc_conditional=False,  # Ignored
+        disc_loss=None,  # Ignored
+        use_mse=False,  # Use MSE if True, else MAE
+    ):
+        super().__init__()
+        self.logvar = nn.Parameter(torch.ones(size=()) * logvar_init)
+        self.pixelloss_weight = pixelloss_weight
+        self.use_mse = use_mse
+
+    def forward(
+        self,
+        inputs,
+        reconstructions,
+        posteriors=None,  # Ignored
+        optimizer_idx=None,  # Ignored
+        global_step=None,  # Ignored
+        last_layer=None,  # Ignored
+        cond=None,  # Ignored
+        split="train",
+        weights=None,  # Ignored
+    ):
+        # Compute pixel-wise reconstruction loss
+        if self.use_mse:
+            rec_loss = torch.mean((inputs - reconstructions) ** 2)  # MSE
+        else:
+            rec_loss = torch.mean(torch.abs(inputs - reconstructions))  # MAE
+
+        # Scale reconstruction loss (if needed)
+        rec_loss = rec_loss * self.pixelloss_weight
+
+        # Add logvar term (same as SimpleLPIPS)
+        nll_loss = rec_loss / torch.exp(self.logvar) + self.logvar
+        nll_loss = torch.mean(nll_loss)
+
+        # Since KL weight is ignored, set KL loss to 0
+        kl_loss = torch.tensor(0.0, device=inputs.device)
+
+        # Total loss
+        loss = nll_loss
+
+        # Logging
+        log = {
+            f"{split}/total_loss": loss.clone().detach().mean(),
+            f"{split}/logvar": self.logvar.detach(),
+            f"{split}/kl_loss": kl_loss.detach().mean(),
+            f"{split}/rec_loss": rec_loss.detach().mean(),
+        }
+
+        return loss, log
