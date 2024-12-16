@@ -6,8 +6,6 @@ import torchvision
 import pytorch_lightning as pl
 import webdataset as wds
 
-# new: from pytorch_lightning.utilities.parsing import LightningArgumentParser
-
 from packaging import version
 from omegaconf import OmegaConf, ListConfig
 from torch.utils.data import random_split, DataLoader, Dataset, Subset
@@ -18,8 +16,6 @@ from pytorch_lightning import seed_everything
 from pytorch_lightning.trainer import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, Callback, LearningRateMonitor
 
-# from pytorch_lightning.utilities.distributed import rank_zero_only
-# above is old way of importing rank_zero_only
 from pytorch_lightning.utilities import rank_zero_only
 
 from pytorch_lightning.utilities import rank_zero_info
@@ -184,6 +180,8 @@ class WebDataModuleFromConfig(pl.LightningDataModule):
         self.dataset_configs = dict()
         self.num_workers = num_workers if num_workers is not None else batch_size * 2
 
+        # remove these checks, and enforce the user to provide train, validation, test instead
+        # remove the predict stuff, i'm not sure what it is even for
         if train is not None:
             self.dataset_configs["train"] = train
             self.train_dataloader = self._train_dataloader
@@ -934,7 +932,7 @@ if __name__ == "__main__":
         # run
         if opt.train:
             try:
-                trainer.fit(model, data)
+                trainer.fit(model, data)  # should data even be passed here?
             except Exception:
                 melk()
                 raise
@@ -951,6 +949,12 @@ if __name__ == "__main__":
             debugger.post_mortem()
         raise
     finally:
+        # wandb cleanup
+        import wandb
+
+        if wandb.run:
+            print("Finalizing wandb run...")
+            wandb.finish()
         # move newly created debug project to debug_runs
         if opt.debug and not opt.resume and trainer.global_rank == 0:
             dst, name = os.path.split(logdir)
