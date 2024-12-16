@@ -213,3 +213,9 @@ then `ssh x_aleho@berzelius1.nsc.liu.se`
 then `interactive --gpus=1`
 then `module load Anaconda/2023.09-0-hpc1-bdist`
 then `conda activate /proj/aicell/users/x_aleho/conda_envs/ldm`
+
+submitting a job:
+`sbatch run_training.sh`
+
+checking status for a job:
+`squeue -u $USER`
