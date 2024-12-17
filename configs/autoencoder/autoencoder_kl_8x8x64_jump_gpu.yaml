@@ -55,8 +55,3 @@ lightning:
   callbacks:
     image_logger:
       target: main.ImageLogger
-      params:
-        log_first_step: True
-        batch_frequency: 100
-        max_images: 4
-        clamp: True

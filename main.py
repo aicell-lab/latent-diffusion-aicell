@@ -479,8 +479,9 @@ class ImageLogger(Callback):
             img = images[k].squeeze(0).squeeze(0)  # [H,W]
             img_np = (img.numpy() * 255).astype(np.uint8)  # Convert to uint8
             wandb_images[k] = wandb.Image(img_np)
+        # pl_module.logger.experiment.log({f"{split}_images": wandb_images, "global_step": pl_module.global_step})
         pl_module.logger.experiment.log(
-            {f"{split}_images": wandb_images, "global_step": pl_module.global_step}
+            {f"{split}_images": wandb_images, "epoch": pl_module.current_epoch}
         )
 
     def log_local(self, save_dir, split, images, global_step, current_epoch, batch_idx):
@@ -498,13 +499,7 @@ class ImageLogger(Callback):
             Image.fromarray(img_np, mode="L").save(path)
 
     def log_img(self, pl_module, batch, batch_idx, split="val"):
-        check_idx = batch_idx if self.log_on_batch_idx else pl_module.global_step
-        if (
-            self.check_frequency(check_idx)
-            and hasattr(pl_module, "log_images")
-            and callable(pl_module.log_images)
-            and self.max_images > 0
-        ):
+        if hasattr(pl_module, "log_images") and callable(pl_module.log_images):
             logger = type(pl_module.logger)
 
             is_train = pl_module.training
@@ -539,15 +534,6 @@ class ImageLogger(Callback):
             if is_train:
                 pl_module.train()
 
-    def check_frequency(self, check_idx):
-        if ((check_idx % self.batch_freq) == 0 or (check_idx in self.log_steps)) and (
-            check_idx > 0 or self.log_first_step
-        ):
-            if self.log_steps:
-                self.log_steps.pop(0)
-            return True
-        return False
-
     def on_validation_batch_end(
         self,
         trainer,
@@ -557,13 +543,9 @@ class ImageLogger(Callback):
         batch_idx,
         dataloader_idx=0,
     ):
-        if not self.disabled and pl_module.global_step >= 0:
+        # log once per epoch
+        if not self.disabled and batch_idx == 0:
             self.log_img(pl_module, batch, batch_idx, split="val")
-        if hasattr(pl_module, "calibrate_grad_norm"):
-            if (
-                pl_module.calibrate_grad_norm and batch_idx % 25 == 0
-            ) and batch_idx > 0:
-                self.log_gradients(trainer, pl_module, batch_idx=batch_idx)
 
 
 class CUDACallback(Callback):
