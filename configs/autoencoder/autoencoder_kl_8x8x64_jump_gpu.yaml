@@ -7,7 +7,7 @@ model:
     lossconfig:
       target: ldm.modules.losses.ELBOLoss
       params:
-        kl_weight: 0.00001
+        kl_weight: 0.0001
 
     ddconfig:
       double_z: True
@@ -24,35 +24,39 @@ model:
 data:
   target: main.WebDataModuleFromConfig
   params:
-    batch_size: 16 # Start small due to image size
-    num_workers: 4
+    batch_size: 2 # Start small due to image size
+    num_workers: 1
     train:
       target: ldm.data.jump.JumpWebDataset
       params:
         root: data/jump_wds
         train: True
+        batch_size: ${data.params.batch_size} # Reference the global batch_size
     validation:
       target: ldm.data.jump.JumpWebDataset
       params:
         root: data/jump_wds
         train: False
+        batch_size: ${data.params.batch_size} # Reference the global batch_size
 
 lightning:
   trainer:
     benchmark: True
-    max_epochs: 20
+    max_epochs: 150
     accelerator: 'gpu'
+    # strategy: 'ddp'
+    # strategy: 'ddp_find_unused_parameters_true'
+    # devices: [0, 1]
     devices: [0]
-
   logger:
     - target: pytorch_lightning.loggers.WandbLogger
       params:
         project: 'jump'
-
-  image_logger:
-    target: main.ImageLogger
-    params:
-      log_first_step: True
-      batch_frequency: 100
-      max_images: 4
-      clamp: True
+  callbacks:
+    image_logger:
+      target: main.ImageLogger
+      params:
+        log_first_step: True
+        batch_frequency: 100
+        max_images: 4
+        clamp: True

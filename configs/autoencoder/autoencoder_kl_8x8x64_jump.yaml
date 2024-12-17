@@ -42,16 +42,15 @@ lightning:
     benchmark: True
     max_epochs: 20
     accelerator: 'cpu'
-
   logger:
     - target: pytorch_lightning.loggers.WandbLogger
       params:
         project: 'jump'
-
-  image_logger:
-    target: main.ImageLogger
-    params:
-      log_first_step: True
-      batch_frequency: 100
-      max_images: 4
-      clamp: True
+  callbacks:
+    image_logger:
+      target: main.ImageLogger
+      params:
+        log_first_step: True
+        batch_frequency: 100
+        max_images: 4
+        clamp: True

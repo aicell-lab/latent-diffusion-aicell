@@ -427,6 +427,9 @@ class SetupCallback(Callback):
                     pass
 
 
+import wandb
+
+
 class ImageLogger(Callback):
     def __init__(
         self,
@@ -446,6 +449,7 @@ class ImageLogger(Callback):
         self.max_images = max_images
         self.logger_log_images = {
             pl.loggers.TensorBoardLogger: self._tensorboard,
+            pl.loggers.WandbLogger: self._wandb,  # Support for W&B
         }
         self.log_steps = [2**n for n in range(int(np.log2(self.batch_freq)) + 1)]
         if not increase_log_steps:
@@ -468,26 +472,35 @@ class ImageLogger(Callback):
             )
 
     @rank_zero_only
+    def _wandb(self, pl_module, images, batch_idx, split):
+        # images[k]: [1,1,H,W] in [0,1]
+        wandb_images = {}
+        for k in images:
+            img = images[k].squeeze(0).squeeze(0)  # [H,W]
+            img_np = (img.numpy() * 255).astype(np.uint8)  # Convert to uint8
+            wandb_images[k] = wandb.Image(img_np)
+        pl_module.logger.experiment.log(
+            {f"{split}_images": wandb_images, "global_step": pl_module.global_step}
+        )
+
     def log_local(self, save_dir, split, images, global_step, current_epoch, batch_idx):
         root = os.path.join(save_dir, "images", split)
         for k in images:
-            grid = torchvision.utils.make_grid(images[k], nrow=4)
-            if self.rescale:
-                grid = (grid + 1.0) / 2.0  # -1,1 -> 0,1; c,h,w
-            grid = grid.transpose(0, 1).transpose(1, 2).squeeze(-1)
-            grid = grid.numpy()
-            grid = (grid * 255).astype(np.uint8)
+            # images[k]: [1,1,H,W] in [0,1]
+            img = images[k].squeeze(0).squeeze(0)  # [H,W]
+            img_np = (img.numpy() * 255).astype(np.uint8)
+            # Now we have a single-channel uint8 [H,W]
             filename = "{}_gs-{:06}_e-{:06}_b-{:06}.png".format(
                 k, global_step, current_epoch, batch_idx
             )
             path = os.path.join(root, filename)
             os.makedirs(os.path.split(path)[0], exist_ok=True)
-            Image.fromarray(grid).save(path)
+            Image.fromarray(img_np, mode="L").save(path)
 
-    def log_img(self, pl_module, batch, batch_idx, split="train"):
+    def log_img(self, pl_module, batch, batch_idx, split="val"):
         check_idx = batch_idx if self.log_on_batch_idx else pl_module.global_step
         if (
-            self.check_frequency(check_idx)  # batch_idx % self.batch_freq == 0
+            self.check_frequency(check_idx)
             and hasattr(pl_module, "log_images")
             and callable(pl_module.log_images)
             and self.max_images > 0
@@ -505,11 +518,8 @@ class ImageLogger(Callback):
 
             for k in images:
                 N = min(images[k].shape[0], self.max_images)
-                images[k] = images[k][:N]
-                if isinstance(images[k], torch.Tensor):
-                    images[k] = images[k].detach().cpu()
-                    if self.clamp:
-                        images[k] = torch.clamp(images[k], -1.0, 1.0)
+                images[k] = images[k][:N]  # Should still be [1,1,H,W]
+                images[k] = images[k].detach().cpu()
 
             self.log_local(
                 pl_module.logger.save_dir,
@@ -520,10 +530,11 @@ class ImageLogger(Callback):
                 batch_idx,
             )
 
+            # WandB or TensorBoard
             logger_log_images = self.logger_log_images.get(
                 logger, lambda *args, **kwargs: None
             )
-            logger_log_images(pl_module, images, pl_module.global_step, split)
+            logger_log_images(pl_module, images, batch_idx, split)
 
             if is_train:
                 pl_module.train()
@@ -532,7 +543,7 @@ class ImageLogger(Callback):
         if ((check_idx % self.batch_freq) == 0 or (check_idx in self.log_steps)) and (
             check_idx > 0 or self.log_first_step
         ):
-            if self.log_steps:  # Only try to pop if there are steps left
+            if self.log_steps:
                 self.log_steps.pop(0)
             return True
         return False
@@ -544,9 +555,9 @@ class ImageLogger(Callback):
         outputs,
         batch,
         batch_idx,
-        dataloader_idx=0,  # Add default value
+        dataloader_idx=0,
     ):
-        if not self.disabled and pl_module.global_step > 0:
+        if not self.disabled and pl_module.global_step >= 0:
             self.log_img(pl_module, batch, batch_idx, split="val")
         if hasattr(pl_module, "calibrate_grad_norm"):
             if (

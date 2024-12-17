@@ -737,31 +737,48 @@ class BasicConvolutionalVAE(pl.LightningModule):
 
     @torch.no_grad()
     def log_images(self, batch, only_inputs=False, **kwargs):
-        log = dict()
+        log = {}
         x = self.get_input(batch, self.image_key)
         x = x.to(self.device)
+        x = x[:1]  # B=1
+
         if not only_inputs:
             xrec, posterior = self(x)
-            if x.shape[1] > 3:
-                # colorize with random projection
-                assert xrec.shape[1] > 3
-                x = self.to_rgb(x)
-                xrec = self.to_rgb(xrec)
-            log["samples"] = self.decode(torch.randn_like(posterior.sample()))
-            log["reconstructions"] = xrec
-        log["inputs"] = x
-        return log
+            samples = self.decode(torch.randn_like(posterior.sample()))
 
-    def to_rgb(self, x):
-        assert self.image_key == "segmentation"
-        if not hasattr(self, "colorize"):
-            self.register_buffer(
-                "colorize",
-                torch.randn(3, x.shape[1], 1, 1).to(x),
-            )
-        x = F.conv2d(x, weight=self.colorize)
-        x = 2.0 * (x - x.min()) / (x.max() - x.min()) - 1.0
-        return x
+            # Convert to [0,1]
+            orig_vis = (x * 0.5 + 0.5).clamp(0, 1)  # [1,C,H,W]
+            recons_vis = (xrec * 0.5 + 0.5).clamp(0, 1)  # [1,C,H,W]
+            samples_vis = (samples * 0.5 + 0.5).clamp(0, 1)
+
+            B, C, H, W = orig_vis.shape
+
+            # Create orig_recon image: 2 rows (orig, recon), C cols
+            orig_row = torch.cat([orig_vis[0, c] for c in range(C)], dim=1)  # [H, C*W]
+            recon_row = torch.cat(
+                [recons_vis[0, c] for c in range(C)], dim=1
+            )  # [H, C*W]
+            orig_recon_img = torch.cat([orig_row, recon_row], dim=0)  # [2H, C*W]
+
+            # Add batch/channel dimension: [1,1,2H,C*W]
+            orig_recon_img = orig_recon_img.unsqueeze(0).unsqueeze(0)
+            log["orig_recon"] = orig_recon_img
+
+            # Create random_samples image: 1 row, C cols
+            sample_row = torch.cat(
+                [samples_vis[0, c] for c in range(C)], dim=1
+            )  # [H, C*W]
+            sample_row = sample_row.unsqueeze(0).unsqueeze(0)  # [1,1,H,C*W]
+            log["random_samples"] = sample_row
+        else:
+            # Just inputs
+            orig_vis = (x * 0.5 + 0.5).clamp(0, 1)  # [1,C,H,W]
+            B, C, H, W = orig_vis.shape
+            orig_row = torch.cat([orig_vis[0, c] for c in range(C)], dim=1)  # [H,C*W]
+            orig_row = orig_row.unsqueeze(0).unsqueeze(0)  # [1,1,H,C*W]
+            log["inputs"] = orig_row
+
+        return log
 
 
 class IdentityFirstStage(torch.nn.Module):
