@@ -41,7 +41,7 @@ lightning:
   trainer:
     benchmark: True
     max_epochs: 20
-    accelerator: 'cpu'
+    accelerator: 'mps'
   logger:
     - target: pytorch_lightning.loggers.WandbLogger
       params:

@@ -682,16 +682,33 @@ if __name__ == "__main__":
         for k in nondefault_trainer_args(opt):
             trainer_config[k] = getattr(opt, k)
 
-        # Handle device configuration and count GPUs in one place
-        if trainer_config.get("accelerator") == "gpu":
+        # Handle device configuration here
+        accelerator = trainer_config.get("accelerator", None)
+
+        # If user hasn’t explicitly requested an accelerator, pick the best available
+        if accelerator is None:
+            if torch.cuda.is_available():
+                # Use GPU
+                trainer_config["accelerator"] = "gpu"
+                trainer_config["devices"] = "auto"
+            elif torch.backends.mps.is_available() and torch.backends.mps.is_built():
+                # Use Apple Silicon MPS
+                trainer_config["accelerator"] = "mps"
+                # MPS currently supports a single device
+                trainer_config["devices"] = 1
+            else:
+                # Use CPU
+                trainer_config["accelerator"] = "cpu"
+                trainer_config["devices"] = 1
+
+        # Now handle the logic based on the final accelerator choice
+        if trainer_config["accelerator"] == "gpu":
             devices = trainer_config.get("devices", "auto")
-            trainer_config["devices"] = devices
 
             if not torch.cuda.is_available():
                 raise ValueError(
                     "GPU training requested but CUDA is not available. "
-                    "Only CUDA GPUs are supported for training. "
-                    "Use accelerator='cpu' for CPU training."
+                    "Use accelerator='cpu' or accelerator='mps' on Mac if you have Apple Silicon."
                 )
 
             # Count GPUs and set strategy
@@ -712,11 +729,27 @@ if __name__ == "__main__":
 
             print(f"Running on {ngpu} GPUs")
             cpu = False
+
+        elif trainer_config["accelerator"] == "mps":
+            if not (
+                torch.backends.mps.is_available() and torch.backends.mps.is_built()
+            ):
+                raise ValueError(
+                    "MPS training requested but MPS is not available on this system."
+                )
+            # MPS supports only single-device training for now
+            trainer_config["devices"] = 1
+            ngpu = 1
+            print("Running on Apple Silicon MPS")
+            cpu = False
+
         else:
+            # CPU fallback
             trainer_config["accelerator"] = "cpu"
             trainer_config["devices"] = 1
             ngpu = 1
             cpu = True
+            print("Running on CPU")
 
         trainer_opt = argparse.Namespace(**trainer_config)
         lightning_config.trainer = trainer_config

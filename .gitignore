@@ -18,3 +18,4 @@ __pycache__/
 !/*/data/
 /wandb
 scripts/jump/data
+images/
