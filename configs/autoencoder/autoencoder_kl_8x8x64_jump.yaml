@@ -7,7 +7,7 @@ model:
     lossconfig:
       target: ldm.modules.losses.ELBOLoss
       params:
-        kl_weight: 0.00001
+        kl_weight: 0.000001
 
     ddconfig:
       double_z: True
@@ -16,26 +16,29 @@ model:
       in_channels: 5 # JUMP channels
       out_ch: 5 # JUMP channels
       ch: 128
-      ch_mult: [1, 2, 4, 8]
+      # => Now 7 entries instead of 4.
+      ch_mult: [1, 1, 2, 2, 4, 4, 8]
       num_res_blocks: 2
-      attn_resolutions: []
+      attn_resolutions: [16, 8]
       dropout: 0.0
 
 data:
   target: main.WebDataModuleFromConfig
   params:
-    batch_size: 1 # Start small due to image size
+    batch_size: 1
     num_workers: 1
     train:
       target: ldm.data.jump.JumpWebDataset
       params:
         root: data/jump_wds
         train: True
+        batch_size: ${data.params.batch_size}
     validation:
       target: ldm.data.jump.JumpWebDataset
       params:
         root: data/jump_wds
         train: False
+        batch_size: ${data.params.batch_size}
 
 lightning:
   trainer:

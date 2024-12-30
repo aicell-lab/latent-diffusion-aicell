@@ -69,11 +69,11 @@ class LPIPSWithDiscriminator(nn.Module):
         weights=None,
     ):
         rec_loss = torch.abs(inputs.contiguous() - reconstructions.contiguous())
-        if self.perceptual_weight > 0:
-            p_loss = self.perceptual_loss(
-                inputs.contiguous(), reconstructions.contiguous()
-            )
-            rec_loss = rec_loss + self.perceptual_weight * p_loss
+        # if self.perceptual_weight > 0:
+        #     p_loss = self.perceptual_loss(
+        #         inputs.contiguous(), reconstructions.contiguous()
+        #     )
+        #     rec_loss = rec_loss + self.perceptual_weight * p_loss
 
         nll_loss = rec_loss / torch.exp(self.logvar) + self.logvar
         weighted_nll_loss = nll_loss
@@ -162,9 +162,7 @@ class ELBOLoss(nn.Module):
         kl_weight=1.0,
     ):
         super().__init__()
-        # We only actually use these parameters
         self.kl_weight = kl_weight
-        # Store logvar as parameter like the original
         self.logvar = nn.Parameter(torch.ones(size=()) * logvar_init)
 
     def forward(

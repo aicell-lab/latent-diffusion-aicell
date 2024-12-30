@@ -14,45 +14,40 @@ model:
     ddconfig:
       double_z: True
       z_channels: 64
-      resolution: 512 # JUMP image size
-      in_channels: 5 # JUMP channels
-      out_ch: 5 # JUMP channels
+      resolution: 256
+      in_channels: 3
+      out_ch: 3
       ch: 128
-      ch_mult: [1, 2, 4, 8]
+      ch_mult: [1, 1, 2, 2, 4, 4] # num_down = len(ch_mult)-1
       num_res_blocks: 2
       attn_resolutions: [16, 8]
       dropout: 0.0
 
 data:
-  target: main.WebDataModuleFromConfig
+  target: main.DataModuleFromConfig
   params:
-    batch_size: 1 # Start small due to image size
-    num_workers: 1
+    batch_size: 12
+    wrap: True
     train:
-      target: ldm.data.jump.JumpWebDataset
+      target: ldm.data.imagenet.ImageNetSRTrain
       params:
-        root: data/jump_wds
-        train: True
+        size: 256
+        degradation: pil_nearest
     validation:
-      target: ldm.data.jump.JumpWebDataset
+      target: ldm.data.imagenet.ImageNetSRValidation
       params:
-        root: data/jump_wds
-        train: False
+        size: 256
+        degradation: pil_nearest
 
 lightning:
-  trainer:
-    benchmark: True
-    max_epochs: 20
-    accelerator: 'mps'
-  logger:
-    - target: pytorch_lightning.loggers.WandbLogger
-      params:
-        project: 'jump'
   callbacks:
     image_logger:
       target: main.ImageLogger
       params:
-        log_first_step: True
-        batch_frequency: 100
-        max_images: 4
-        clamp: True
+        batch_frequency: 1000
+        max_images: 8
+        increase_log_steps: True
+
+  trainer:
+    benchmark: True
+    accumulate_grad_batches: 2
