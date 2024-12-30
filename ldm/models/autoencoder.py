@@ -576,7 +576,7 @@ class AutoencoderKL(pl.LightningModule):
         return x
 
 
-class BasicConvolutionalVAE(pl.LightningModule):
+class BasicAutoencoderKL(pl.LightningModule):
     def __init__(
         self,
         ddconfig,
