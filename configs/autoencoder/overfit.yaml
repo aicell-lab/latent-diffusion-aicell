@@ -7,9 +7,7 @@ model:
     lossconfig:
       target: ldm.modules.losses.ELBOLoss
       params:
-        kl_weight: 0.000001
-        # kl_weight: 0.00001
-        # kl_weight: 0.0001
+        kl_weight: 0
 
     ddconfig:
       double_z: True
@@ -26,18 +24,18 @@ model:
 data:
   target: main.WebDataModuleFromConfig
   params:
-    batch_size: 4
+    batch_size: 1
     num_workers: 1
     train:
       target: ldm.data.jump.JumpWebDataset
       params:
-        root: data/jump_0.01percent
+        root: data/jump_overfit
         train: True
         batch_size: ${data.params.batch_size}
     validation:
       target: ldm.data.jump.JumpWebDataset
       params:
-        root: data/jump_0.01percent
+        root: data/jump_overfit
         train: False
         batch_size: ${data.params.batch_size}
 
