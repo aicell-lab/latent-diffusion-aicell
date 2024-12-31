@@ -30,13 +30,13 @@ data:
     train:
       target: ldm.data.jump.JumpWebDataset
       params:
-        root: data/jump_wds
+        root: data/jump_0.01percent
         train: True
         batch_size: ${data.params.batch_size}
     validation:
       target: ldm.data.jump.JumpWebDataset
       params:
-        root: data/jump_wds
+        root: data/jump_0.01percent
         train: False
         batch_size: ${data.params.batch_size}
 

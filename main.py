@@ -583,6 +583,34 @@ class CUDACallback(Callback):
                 pass
 
 
+def setup_wandb_config(config, loggers):
+    """
+    Find the WandbLogger among multiple loggers and update wandb.config
+    with keys from `config`.
+    """
+    import wandb
+    from omegaconf import OmegaConf
+
+    # locate the WandbLogger
+    wandb_logger = None
+    for lg in loggers:
+        if isinstance(lg, pl.loggers.WandbLogger):
+            wandb_logger = lg
+            break
+
+    if wandb_logger is not None:
+        # Convert OmegaConf -> dictionary
+        # resolve=True expands interpolations if any
+        config_dict = OmegaConf.to_container(config, resolve=True)
+
+        # Now update W&B config
+        # wandb_logger.experiment is the wandb.run object
+        wandb_logger.experiment.config.update(config_dict)
+        print("W&B config updated with OmegaConf config.")
+    else:
+        print("No WandbLogger found; skipping W&B config update.")
+
+
 if __name__ == "__main__":
     # custom parser to specify config files, train, test and debug mode,
     # postfix, resume.
@@ -794,20 +822,18 @@ if __name__ == "__main__":
         if "logger" in lightning_config:
             logger_cfg = lightning_config.logger
             if isinstance(logger_cfg, ListConfig):
-                # Config specifies multiple loggers
                 for logger_conf in logger_cfg:
                     loggers.append(instantiate_from_config(logger_conf))
             else:
-                # Config specifies single logger
                 loggers.append(instantiate_from_config(logger_cfg))
         else:
-            # Use both default loggers if none specified
             loggers = [
                 instantiate_from_config(default_logger_cfgs["tensorboard"]),
                 instantiate_from_config(default_logger_cfgs["wandb"]),
             ]
 
         trainer_kwargs["logger"] = loggers
+        setup_wandb_config(config, loggers)
 
         # modelcheckpoint - use TrainResult/EvalResult(checkpoint_on=metric) to
         # specify which metric is used to determine best models

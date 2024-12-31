@@ -13,7 +13,7 @@ import tifffile
 import torch
 from torchvision.transforms.functional import resize
 
-OVERFIT = True  # Set to True if you want 1 sample for train, 1 for val, 1 for test
+OVERFIT = False  # Set to True if you want 1 sample for train, 1 for val, 1 for test
 
 
 async def download_sample_async(session, row, tar):
@@ -87,7 +87,7 @@ async def download_and_create_tar_async(
 
 
 async def main():
-    subset = "0.001percent"
+    subset = "0.01percent"
     df = pd.read_parquet(f"scripts/jump/data/subsets/subset_{subset}.parquet")
 
     if OVERFIT:
