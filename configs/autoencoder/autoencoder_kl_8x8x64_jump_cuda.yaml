@@ -8,6 +8,8 @@ model:
       target: ldm.modules.losses.ELBOLoss
       params:
         kl_weight: 0.000001
+        # kl_weight: 0.00001
+        # kl_weight: 0.0001
 
     ddconfig:
       double_z: True
@@ -16,7 +18,6 @@ model:
       in_channels: 5 # JUMP channels
       out_ch: 5 # JUMP channels
       ch: 128
-      # => Now 7 entries instead of 4.
       ch_mult: [1, 1, 2, 2, 4, 4, 8]
       num_res_blocks: 2
       attn_resolutions: [16, 8]
@@ -30,13 +31,13 @@ data:
     train:
       target: ldm.data.jump.JumpWebDataset
       params:
-        root: data/jump_wds
+        root: data/jump_overfit
         train: True
         batch_size: ${data.params.batch_size}
     validation:
       target: ldm.data.jump.JumpWebDataset
       params:
-        root: data/jump_wds
+        root: data/jump_overfit
         train: False
         batch_size: ${data.params.batch_size}
 

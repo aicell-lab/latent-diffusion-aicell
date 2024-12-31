@@ -460,6 +460,9 @@ class ImageLogger(Callback):
         self.log_images_kwargs = log_images_kwargs if log_images_kwargs else {}
         self.log_first_step = log_first_step
 
+        self.last_train_batch = None
+        self.last_train_batch_idx = None
+
     @rank_zero_only
     def _tensorboard(self, pl_module, images, batch_idx, split):
         for k in images:
@@ -534,6 +537,11 @@ class ImageLogger(Callback):
             if is_train:
                 pl_module.train()
 
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
+        # log once per epoch
+        if not self.disabled and trainer.global_rank == 0 and batch_idx == 0:
+            self.log_img(pl_module, batch, batch_idx, split="train")
+
     def on_validation_batch_end(
         self,
         trainer,
@@ -544,7 +552,7 @@ class ImageLogger(Callback):
         dataloader_idx=0,
     ):
         # log once per epoch
-        if not self.disabled and batch_idx == 0:
+        if not self.disabled and trainer.global_rank == 0 and batch_idx == 0:
             self.log_img(pl_module, batch, batch_idx, split="val")
 
 

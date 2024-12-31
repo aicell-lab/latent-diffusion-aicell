@@ -655,69 +655,84 @@ class BasicAutoencoderKL(pl.LightningModule):
 
         # Autoencoder training
         opt.zero_grad()
-        aeloss, log_dict_ae = self.loss(
+        loss, log_dict_ae = self.loss(
             inputs,
             reconstructions,
             posterior,
-            0,
-            self.global_step,
+            optimizer_idx=0,
+            global_step=self.global_step,
             last_layer=self.get_last_layer(),
             split="train",
         )
-        self.manual_backward(aeloss)
+        self.manual_backward(loss)
         opt.step()
 
-        # Log
-        log_dict_ae = {
-            k: v.to(self.device) if torch.is_tensor(v) else v
-            for k, v in log_dict_ae.items()
-        }
+        for k, v in log_dict_ae.items():
+            if torch.is_tensor(v):
+                log_dict_ae[k] = v.to(self.device)
+
+        # log total loss every step
         self.log(
-            "aeloss",
-            aeloss,
+            "train/loss",  # progress-bar metric name
+            loss,
             prog_bar=True,
             logger=True,
             on_step=True,
             on_epoch=True,
             sync_dist=True,
         )
+
+        # log total loss every step
         self.log_dict(
             log_dict_ae,
             prog_bar=False,
             logger=True,
-            on_step=True,
-            on_epoch=False,
+            on_step=False,
+            on_epoch=True,
             sync_dist=True,
         )
+
+        return loss
 
     def validation_step(self, batch, batch_idx):
         inputs = self.get_input(batch, self.image_key)
         reconstructions, posterior = self(inputs)
 
-        # Autoencoder validation loss
-        aeloss, log_dict_ae = self.loss(
+        loss, log_dict_ae = self.loss(
             inputs,
             reconstructions,
             posterior,
-            0,
-            self.global_step,
+            optimizer_idx=0,
+            global_step=self.global_step,
             last_layer=self.get_last_layer(),
             split="val",
         )
-        log_dict_ae = {
-            k: v.to(self.device) if torch.is_tensor(v) else v
-            for k, v in log_dict_ae.items()
-        }
 
+        for k, v in log_dict_ae.items():
+            if torch.is_tensor(v):
+                log_dict_ae[k] = v.to(self.device)
+
+        # log total loss every epoch for val
         self.log(
-            "val/rec_loss",
-            log_dict_ae["val/rec_loss"],
-            sync_dist=True,
-            on_step=True,
+            "val/loss_epoch",
+            loss,
+            prog_bar=True,
+            logger=True,
+            on_step=False,
             on_epoch=True,
+            sync_dist=True,
         )
-        self.log_dict(log_dict_ae, sync_dist=True, on_step=True, on_epoch=True)
-        return self.log_dict
+
+        # log other losses every epoch
+        self.log_dict(
+            log_dict_ae,
+            logger=True,
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+        )
+
+        return loss
 
     def configure_optimizers(self):
         lr = self.learning_rate

@@ -187,7 +187,7 @@ class ELBOLoss(nn.Module):
         loss = nll_loss + self.kl_weight * kl_loss
 
         log = {
-            f"{split}/total_loss": loss.clone().detach().mean(),
+            # f"{split}/total_loss": loss.clone().detach().mean(),
             f"{split}/logvar": self.logvar.detach(),
             f"{split}/kl_loss": kl_loss.detach().mean(),
             f"{split}/nll_loss": nll_loss.detach().mean(),

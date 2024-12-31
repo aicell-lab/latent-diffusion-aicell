@@ -13,13 +13,16 @@ import tifffile
 import torch
 from torchvision.transforms.functional import resize
 
+OVERFIT = True  # Set to True if you want 1 sample for train, 1 for val, 1 for test
+
 
 async def download_sample_async(session, row, tar):
     channels = []
 
-    # Download each channel
+    # no brightfield for now
+    # the order is ["RNA", "ER", "AGP", "Mito", "DNA"]
     for channel in ["RNA", "ER", "AGP", "Mito", "DNA"]:
-        s3_path = row[f"Image_{channel}"]
+        s3_path = row.get(f"Image_{channel}", None)
         if not s3_path:
             continue
 
@@ -32,11 +35,11 @@ async def download_sample_async(session, row, tar):
             channels.append(img)
 
     # Stack into 5-channel array
-    combined = np.stack(channels, axis=0).astype(np.float32)  # Shape: (5, H, W)
+    combined = np.stack(channels, axis=0).astype(np.float32)  # shape = (5,H,W)
 
     # Resize the stacked array (all channels together)
-    combined_tensor = torch.from_numpy(combined)  # Convert to tensor
-    resized_tensor = resize(combined_tensor, [512, 512])  # Resize to (5, 512, 512)
+    combined_tensor = torch.from_numpy(combined)
+    resized_tensor = resize(combined_tensor, [512, 512])  # (5,512,512)
 
     # Save to buffer
     buffer = io.BytesIO()
@@ -84,19 +87,37 @@ async def download_and_create_tar_async(
 
 
 async def main():
-    # Load and split data
-    df = pd.read_parquet("scripts/jump/data/subsets/subset_0.001percent.parquet")
-    train_val_df, test_df = train_test_split(df, test_size=0.1, random_state=42)
-    train_df, val_df = train_test_split(train_val_df, test_size=0.1, random_state=42)
+    subset = "0.001percent"
+    df = pd.read_parquet(f"scripts/jump/data/subsets/subset_{subset}.parquet")
 
-    print(f"Train: {len(train_df)}, Val: {len(val_df)}, Test: {len(test_df)}")
+    if OVERFIT:
+        # Just pick the first 3 rows if available
+        if len(df) < 3:
+            raise ValueError("Not enough rows to pick 3 samples (train/val/test).")
+
+        train_df = df.iloc[[0]].copy()
+        val_df = df.iloc[[1]].copy()
+        test_df = df.iloc[[2]].copy()
+
+        output_dir = "data/jump_overfit"
+        print(f"Overfit mode ON: 1 sample each -> {output_dir}")
+        print(f"Train: {len(train_df)}, Val: {len(val_df)}, Test: {len(test_df)}")
+
+    else:
+        train_val_df, test_df = train_test_split(df, test_size=0.1, random_state=42)
+        train_df, val_df = train_test_split(
+            train_val_df, test_size=0.1, random_state=42
+        )
+
+        output_dir = f"data/jump_{subset}"
+        print(f"Overfit mode OFF: normal splits -> {output_dir}")
+        print(f"Train: {len(train_df)}, Val: {len(val_df)}, Test: {len(test_df)}")
 
     # Process each split
     splits = {"train": train_df, "val": val_df, "test": test_df}
-
     for split_name, split_df in splits.items():
         await download_and_create_tar_async(
-            split_df, "data/jump_wds", split_name, samples_per_tar=10
+            split_df, output_dir, split_name, samples_per_tar=10
         )
 
 
