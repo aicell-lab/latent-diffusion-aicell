@@ -13,7 +13,7 @@ import tifffile
 import torch
 from torchvision.transforms.functional import resize
 
-OVERFIT = False  # Set to True if you want 1 sample for train, 1 for val, 1 for test
+OVERFIT = True  # Set to True if you want 1 sample for train, 1 for val, 1 for test
 
 
 async def download_sample_async(session, row, tar):

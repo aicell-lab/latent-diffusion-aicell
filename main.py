@@ -476,30 +476,42 @@ class ImageLogger(Callback):
 
     @rank_zero_only
     def _wandb(self, pl_module, images, batch_idx, split):
-        # images[k]: [1,1,H,W] in [0,1]
+        # images[k] is shape [1,CH,H,W], CH=1 or 3
         wandb_images = {}
         for k in images:
-            img = images[k].squeeze(0).squeeze(0)  # [H,W]
-            img_np = (img.numpy() * 255).astype(np.uint8)  # Convert to uint8
-            wandb_images[k] = wandb.Image(img_np)
-        # pl_module.logger.experiment.log({f"{split}_images": wandb_images, "global_step": pl_module.global_step})
+            # shape => [1,CH,H,W], remove batch dimension => [CH,H,W]
+            img_chw = images[k].squeeze(0)
+            # if CH=1 => grayscale; if CH=3 => RGB
+            if img_chw.shape[0] == 1:
+                # Grayscale
+                img_np = (img_chw.squeeze(0).numpy() * 255).astype(np.uint8)  # [H,W]
+                wandb_images[k] = wandb.Image(img_np)
+            elif img_chw.shape[0] == 3:
+                # Permute to [H,W,3]
+                img_hwc = (img_chw.permute(1, 2, 0).numpy() * 255).astype(np.uint8)
+                wandb_images[k] = wandb.Image(img_hwc)
+            else:
+                # Unknown shape, skip or handle differently
+                continue
+
         pl_module.logger.experiment.log(
             {f"{split}_images": wandb_images, "epoch": pl_module.current_epoch}
         )
 
     def log_local(self, save_dir, split, images, global_step, current_epoch, batch_idx):
-        root = os.path.join(save_dir, "images", split)
-        for k in images:
-            # images[k]: [1,1,H,W] in [0,1]
-            img = images[k].squeeze(0).squeeze(0)  # [H,W]
-            img_np = (img.numpy() * 255).astype(np.uint8)
-            # Now we have a single-channel uint8 [H,W]
-            filename = "{}_gs-{:06}_e-{:06}_b-{:06}.png".format(
-                k, global_step, current_epoch, batch_idx
-            )
-            path = os.path.join(root, filename)
-            os.makedirs(os.path.split(path)[0], exist_ok=True)
-            Image.fromarray(img_np, mode="L").save(path)
+        pass
+        # root = os.path.join(save_dir, "images", split)
+        # for k in images:
+        #     # images[k]: [1,1,H,W] in [0,1]
+        #     img = images[k].squeeze(0).squeeze(0)  # [H,W]
+        #     img_np = (img.numpy() * 255).astype(np.uint8)
+        #     # Now we have a single-channel uint8 [H,W]
+        #     filename = "{}_gs-{:06}_e-{:06}_b-{:06}.png".format(
+        #         k, global_step, current_epoch, batch_idx
+        #     )
+        #     path = os.path.join(root, filename)
+        #     os.makedirs(os.path.split(path)[0], exist_ok=True)
+        #     Image.fromarray(img_np, mode="L").save(path)
 
     def log_img(self, pl_module, batch, batch_idx, split="val"):
         if hasattr(pl_module, "log_images") and callable(pl_module.log_images):

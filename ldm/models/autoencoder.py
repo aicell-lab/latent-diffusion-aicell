@@ -1,6 +1,10 @@
+import io
 import torch
 import pytorch_lightning as pl
 import torch.nn.functional as F
+import matplotlib.pyplot as plt
+from PIL import Image
+import torchvision.transforms.functional as TF
 from contextlib import contextmanager
 
 from taming.modules.vqvae.quantize import VectorQuantizer2 as VectorQuantizer
@@ -732,6 +736,19 @@ class BasicAutoencoderKL(pl.LightningModule):
             sync_dist=True,
         )
 
+        # Take just the first item if batch size > 1
+        lv_map = posterior.logvar[0]  # shape [zC,H_z,W_z]
+
+        var_map = torch.exp(lv_map)  # shape [zC,H_z,W_z]
+
+        var_min = var_map.min().item()
+        var_mean = var_map.mean().item()
+
+        # If var_min/var_mean is near 1, everything's uniform.
+        # If it's near 0, there's a "black hole" or extremely low-variance region.
+        var_ratio = var_min / (var_mean + 1e-8)
+
+        self.log("val/var_min_to_mean_ratio", var_ratio, prog_bar=False, on_epoch=True)
         return loss
 
     def configure_optimizers(self):
@@ -751,47 +768,67 @@ class BasicAutoencoderKL(pl.LightningModule):
         return self.decoder.conv_out.weight
 
     @torch.no_grad()
-    def log_images(self, batch, only_inputs=False, **kwargs):
+    def log_images(self, batch, **kwargs):
         log = {}
         x = self.get_input(batch, self.image_key)
         x = x.to(self.device)
         x = x[:1]  # B=1
 
-        if not only_inputs:
-            xrec, posterior = self(x)
-            samples = self.decode(torch.randn_like(posterior.sample()))
+        # 1) Standard Recon + Random Sample
+        xrec, posterior = self(x)
+        samples = self.decode(torch.randn_like(posterior.sample()))
 
-            # Convert to [0,1]
-            orig_vis = (x * 0.5 + 0.5).clamp(0, 1)  # [1,C,H,W]
-            recons_vis = (xrec * 0.5 + 0.5).clamp(0, 1)  # [1,C,H,W]
-            samples_vis = (samples * 0.5 + 0.5).clamp(0, 1)
+        # Convert to [0,1]
+        orig_vis = (x * 0.5 + 0.5).clamp(0, 1)  # [1,C,H,W]
+        recons_vis = (xrec * 0.5 + 0.5).clamp(0, 1)  # [1,C,H,W]
+        samples_vis = (samples * 0.5 + 0.5).clamp(0, 1)
 
-            B, C, H, W = orig_vis.shape
+        B, C, H, W = orig_vis.shape
 
-            # Create orig_recon image: 2 rows (orig, recon), C cols
-            orig_row = torch.cat([orig_vis[0, c] for c in range(C)], dim=1)  # [H, C*W]
-            recon_row = torch.cat(
-                [recons_vis[0, c] for c in range(C)], dim=1
-            )  # [H, C*W]
-            orig_recon_img = torch.cat([orig_row, recon_row], dim=0)  # [2H, C*W]
+        # Create orig_recon image: 2 rows (orig, recon), C cols
+        orig_row = torch.cat([orig_vis[0, c] for c in range(C)], dim=1)  # [H, C*W]
+        recon_row = torch.cat([recons_vis[0, c] for c in range(C)], dim=1)  # [H, C*W]
+        orig_recon_img = torch.cat([orig_row, recon_row], dim=0)  # [2H, C*W]
+        orig_recon_img = orig_recon_img.unsqueeze(0).unsqueeze(0)  # [1,1,2H,C*W]
+        log["orig_recon"] = orig_recon_img
 
-            # Add batch/channel dimension: [1,1,2H,C*W]
-            orig_recon_img = orig_recon_img.unsqueeze(0).unsqueeze(0)
-            log["orig_recon"] = orig_recon_img
+        # Create random_samples image: 1 row, C cols
+        sample_row = torch.cat([samples_vis[0, c] for c in range(C)], dim=1)  # [H, C*W]
+        sample_row = sample_row.unsqueeze(0).unsqueeze(0)  # [1,1,H,C*W]
+        log["random_samples"] = sample_row
 
-            # Create random_samples image: 1 row, C cols
-            sample_row = torch.cat(
-                [samples_vis[0, c] for c in range(C)], dim=1
-            )  # [H, C*W]
-            sample_row = sample_row.unsqueeze(0).unsqueeze(0)  # [1,1,H,C*W]
-            log["random_samples"] = sample_row
-        else:
-            # Just inputs
-            orig_vis = (x * 0.5 + 0.5).clamp(0, 1)  # [1,C,H,W]
-            B, C, H, W = orig_vis.shape
-            orig_row = torch.cat([orig_vis[0, c] for c in range(C)], dim=1)  # [H,C*W]
-            orig_row = orig_row.unsqueeze(0).unsqueeze(0)  # [1,1,H,C*W]
-            log["inputs"] = orig_row
+        # 2) Create a color-coded variance heatmap
+        # posterior.logvar shape: [B,zC,H_z,W_z]. We'll pick [0]
+        logvar_map = posterior.logvar[0]  # [zC,H_z,W_z]
+        var_map = torch.exp(logvar_map)  # [zC,H_z,W_z]
+        var_map_mean = var_map.mean(dim=0).cpu().numpy()  # [H_z,W_z], convert to numpy
+
+        # Render a matplotlib figure in memory
+        # Suppose we decide we want the color scale to always be from 0.0 to 2.0, or from 0.5 to 1.5, etc.
+        fig, ax = plt.subplots(figsize=(4, 4))
+        im = ax.imshow(
+            var_map_mean,
+            cmap="magma",
+            vmin=0.8,
+            vmax=1.2,
+        )
+
+        fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+        ax.set_title("Mean Variance")
+        ax.axis("off")
+
+        # Save figure to buffer as PNG
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", bbox_inches="tight")
+        plt.close(fig)
+        buf.seek(0)
+
+        # Convert the PNG buffer to a PIL Image (RGB)
+        pil_map = Image.open(buf).convert("RGB")
+
+        # Convert PIL → torch tensor [3,H,W], then add batch dimension → [1,3,H,W]
+        var_map_tensor = TF.to_tensor(pil_map).unsqueeze(0)  # [1,3,H',W']
+        log["variance_map_mean"] = var_map_tensor
 
         return log
 
