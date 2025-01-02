@@ -648,7 +648,6 @@ class BasicAutoencoderKL(pl.LightningModule):
         x = batch[k]
         if len(x.shape) == 3:
             x = x[..., None]
-        x = x.permute(0, 3, 1, 2).to(memory_format=torch.contiguous_format).float()
         return x
 
     def training_step(self, batch, batch_idx):
@@ -779,9 +778,9 @@ class BasicAutoencoderKL(pl.LightningModule):
         samples = self.decode(torch.randn_like(posterior.sample()))
 
         # Convert to [0,1]
-        orig_vis = (x * 0.5 + 0.5).clamp(0, 1)  # [1,C,H,W]
-        recons_vis = (xrec * 0.5 + 0.5).clamp(0, 1)  # [1,C,H,W]
-        samples_vis = (samples * 0.5 + 0.5).clamp(0, 1)
+        orig_vis = x.clamp(0, 1)  # [1,C,H,W]
+        recons_vis = xrec.clamp(0, 1)  # [1,C,H,W]
+        samples_vis = samples.clamp(0, 1)
 
         B, C, H, W = orig_vis.shape
 
@@ -796,39 +795,6 @@ class BasicAutoencoderKL(pl.LightningModule):
         sample_row = torch.cat([samples_vis[0, c] for c in range(C)], dim=1)  # [H, C*W]
         sample_row = sample_row.unsqueeze(0).unsqueeze(0)  # [1,1,H,C*W]
         log["random_samples"] = sample_row
-
-        # 2) Create a color-coded variance heatmap
-        # posterior.logvar shape: [B,zC,H_z,W_z]. We'll pick [0]
-        logvar_map = posterior.logvar[0]  # [zC,H_z,W_z]
-        var_map = torch.exp(logvar_map)  # [zC,H_z,W_z]
-        var_map_mean = var_map.mean(dim=0).cpu().numpy()  # [H_z,W_z], convert to numpy
-
-        # Render a matplotlib figure in memory
-        # Suppose we decide we want the color scale to always be from 0.0 to 2.0, or from 0.5 to 1.5, etc.
-        fig, ax = plt.subplots(figsize=(4, 4))
-        im = ax.imshow(
-            var_map_mean,
-            cmap="magma",
-            vmin=0.8,
-            vmax=1.2,
-        )
-
-        fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-        ax.set_title("Mean Variance")
-        ax.axis("off")
-
-        # Save figure to buffer as PNG
-        buf = io.BytesIO()
-        fig.savefig(buf, format="png", bbox_inches="tight")
-        plt.close(fig)
-        buf.seek(0)
-
-        # Convert the PNG buffer to a PIL Image (RGB)
-        pil_map = Image.open(buf).convert("RGB")
-
-        # Convert PIL → torch tensor [3,H,W], then add batch dimension → [1,3,H,W]
-        var_map_tensor = TF.to_tensor(pil_map).unsqueeze(0)  # [1,3,H',W']
-        log["variance_map_mean"] = var_map_tensor
 
         return log
 

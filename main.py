@@ -465,10 +465,13 @@ class ImageLogger(Callback):
 
     @rank_zero_only
     def _tensorboard(self, pl_module, images, batch_idx, split):
+        """
+        Log images to TensorBoard. Assumes images are already in [0,1].
+        """
         for k in images:
             grid = torchvision.utils.make_grid(images[k])
-            grid = (grid + 1.0) / 2.0  # -1,1 -> 0,1; c,h,w
-
+            if self.clamp:
+                grid = grid.clamp(0, 1)
             tag = f"{split}/{k}"
             pl_module.logger.experiment.add_image(
                 tag, grid, global_step=pl_module.global_step
@@ -476,46 +479,39 @@ class ImageLogger(Callback):
 
     @rank_zero_only
     def _wandb(self, pl_module, images, batch_idx, split):
-        # images[k] is shape [1,CH,H,W], CH=1 or 3
+        """
+        Log images to Weights & Biases. Again assuming [0,1].
+        """
+        if wandb is None:
+            return  # wandb not installed
+
         wandb_images = {}
         for k in images:
-            # shape => [1,CH,H,W], remove batch dimension => [CH,H,W]
+            # shape => [1,CH,H,W]; remove batch dim => [CH,H,W]
             img_chw = images[k].squeeze(0)
-            # if CH=1 => grayscale; if CH=3 => RGB
+            if self.clamp:
+                img_chw = img_chw.clamp(0, 1)
+
+            # Convert to [H,W] or [CH,H,W] depending on CH
+            # For grayscale (CH=1), we'll remove channel dim. For RGB (CH=3), wandb.Image supports 3D shape.
             if img_chw.shape[0] == 1:
-                # Grayscale
-                img_np = (img_chw.squeeze(0).numpy() * 255).astype(np.uint8)  # [H,W]
-                wandb_images[k] = wandb.Image(img_np)
-            elif img_chw.shape[0] == 3:
-                # Permute to [H,W,3]
-                img_hwc = (img_chw.permute(1, 2, 0).numpy() * 255).astype(np.uint8)
-                wandb_images[k] = wandb.Image(img_hwc)
+                # single-channel
+                img_np = (img_chw.squeeze(0).cpu().numpy() * 255).astype(np.uint8)
             else:
-                # Unknown shape, skip or handle differently
-                continue
+                # e.g. CH=3 => shape(3,H,W)
+                # wandb.Image can handle (H,W,3), so permute
+                img_hwc = img_chw.permute(1, 2, 0).cpu().numpy()  # => (H,W,3)
+                img_np = (img_hwc * 255).astype(np.uint8)
+
+            wandb_images[k] = wandb.Image(img_np)
 
         pl_module.logger.experiment.log(
             {f"{split}_images": wandb_images, "epoch": pl_module.current_epoch}
         )
 
-    def log_local(self, save_dir, split, images, global_step, current_epoch, batch_idx):
-        pass
-        # root = os.path.join(save_dir, "images", split)
-        # for k in images:
-        #     # images[k]: [1,1,H,W] in [0,1]
-        #     img = images[k].squeeze(0).squeeze(0)  # [H,W]
-        #     img_np = (img.numpy() * 255).astype(np.uint8)
-        #     # Now we have a single-channel uint8 [H,W]
-        #     filename = "{}_gs-{:06}_e-{:06}_b-{:06}.png".format(
-        #         k, global_step, current_epoch, batch_idx
-        #     )
-        #     path = os.path.join(root, filename)
-        #     os.makedirs(os.path.split(path)[0], exist_ok=True)
-        #     Image.fromarray(img_np, mode="L").save(path)
-
     def log_img(self, pl_module, batch, batch_idx, split="val"):
         if hasattr(pl_module, "log_images") and callable(pl_module.log_images):
-            logger = type(pl_module.logger)
+            logger_cls = type(pl_module.logger)  # e.g. TensorBoardLogger or WandbLogger
 
             is_train = pl_module.training
             if is_train:
@@ -526,25 +522,17 @@ class ImageLogger(Callback):
                     batch, split=split, **self.log_images_kwargs
                 )
 
+            # Pick a subset up to max_images
             for k in images:
                 N = min(images[k].shape[0], self.max_images)
-                images[k] = images[k][:N]  # Should still be [1,1,H,W]
+                images[k] = images[k][:N]
                 images[k] = images[k].detach().cpu()
 
-            self.log_local(
-                pl_module.logger.save_dir,
-                split,
-                images,
-                pl_module.global_step,
-                pl_module.current_epoch,
-                batch_idx,
+            # Route to the appropriate logger function (TensorBoard/WandB)
+            logger_log_images_fn = self.logger_log_images.get(
+                logger_cls, lambda *args, **kwargs: None
             )
-
-            # WandB or TensorBoard
-            logger_log_images = self.logger_log_images.get(
-                logger, lambda *args, **kwargs: None
-            )
-            logger_log_images(pl_module, images, batch_idx, split)
+            logger_log_images_fn(pl_module, images, batch_idx, split)
 
             if is_train:
                 pl_module.train()
