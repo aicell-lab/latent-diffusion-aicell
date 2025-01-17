@@ -208,11 +208,18 @@ rsync -av --progress \
  . x_aleho@berzelius1.nsc.liu.se:/proj/aicell/users/x_aleho/modern-latent-diffusion
 ```
 
+rsync -av --progress /Users/lapuerta/aicell/PhenoScreen x_aleho@berzelius1.nsc.liu.se:/proj/aicell/users/x_aleho
+
+rsync -av --progress /Users/lapuerta/Downloads/models root@66.114.112.70:/workspace/PhenoScreen
+
 then `ssh x_aleho@berzelius1.nsc.liu.se`
 
 then `interactive --gpus=1`
 then `module load Anaconda/2023.09-0-hpc1-bdist`
 then `conda activate /proj/aicell/users/x_aleho/conda_envs/ldm`
+OR
+then `module load Mambaforge/23.3.1-1-hpc1-bdist`
+then `mamba activate /proj/aicell/users/x_aleho/conda_envs/ldm`
 
 submitting a job:
 `sbatch run_training.sh`

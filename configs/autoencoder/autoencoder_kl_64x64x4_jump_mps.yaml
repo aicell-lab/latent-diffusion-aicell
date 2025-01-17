@@ -32,13 +32,13 @@ data:
     train:
       target: ldm.data.jump.JumpWebDataset
       params:
-        root: data/jump_2e-05
+        root: data/cpg0012
         train: True
         batch_size: ${data.params.batch_size}
     validation:
       target: ldm.data.jump.JumpWebDataset
       params:
-        root: data/jump_2e-05
+        root: data/cpg0012
         train: False
         batch_size: ${data.params.batch_size}
 
